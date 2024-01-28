@@ -13,7 +13,10 @@
 ## (1) Market Cap at or below Net-Current-Asset-Value
 
 - How to calculate:
-  - Average
+  - (A) Calculate Market Cap
+  - (B) Calculate Net-Current-Asset-Value
+    - Current Assets - (Total Liabilities + Preferred Stock)
+  - return stocks where A >= B
 
 ## (2) Average 5Y annual Free Cash Flow <= 10%
 
@@ -30,7 +33,7 @@
 - How to calculate:
   - ...
 
-## (5) Some 5Y dividends or buybacks present
+## (5) Sum 5Y dividends or buybacks present
 
 - How to calculate:
   - ...
