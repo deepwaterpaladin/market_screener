@@ -10,13 +10,25 @@ class Screener:
     def is_positive_ncav(self)->bool:
         return self.calculate_ncav() > 0
 
-    def calculate_ncav(self) -> float:
-        pass
+    def calculate_ncav(self, current_assets: float, total_liabilities: float, preferred_stock: float = 0.0) -> float:
+        """
+        Calculate Net Current Asset Value (NCAV).
 
-    def is_postitive_net_debt(self)->bool:
-        pass
+        Parameters:
+        - current_assets (float): Total current assets.
+        - total_liabilities (float): Total liabilities.
 
-    def calculate_total_dividends(self) -> float:
+        Returns:
+        - float: NCAV (Net Current Asset Value).
+        """
+        # ncav = current_assets - (total_liabilities + preferred_stock)
+        ncav = sum([current_assets, total_liabilities, preferred_stock])
+        return ncav
+
+    def calculate_net_debt(self, total_debt: float, cash_and_equivalents: float) -> float:
+        return total_debt - cash_and_equivalents
+
+    def calculate_total_dividends(self, frequency:str, dividend:float, free_float: int) -> float:
         pass
 
     def calculate_total_buybacks(self) -> float:
@@ -26,15 +38,56 @@ class Screener:
         # if  we took all the cash & equivalents plus the average 5Y earnings and added them together, how long would it take to pay back the current market cap.
         pass
 
-    def calculate_average_earnings(self, time_frame: int) -> float:
-        pass
+    def calculate_average_earnings_yield(self, fcff_values, market_cap_values, threshold_percentage=10):
+        """
+        Calculate the average 5-year annual Free Cash Flow yield.
+
+        Parameters:
+        - fcff_values (list): List of Free Cash Flow values over 5 years.
+        - market_cap_values (list): List of Market Capitalization values over 5 years.
+        - threshold_percentage (float): Threshold for FCF yield (default is 10%).
+
+        Returns:
+        - float: Average 5-year annual FCF yield.
+        """
+        # Calculate FCF yields for each year
+        fcff_yields = [fcf / market_cap * 100 for fcf, market_cap in zip(fcff_values, market_cap_values)]
+        # Filter FCF yields that meet the threshold
+        qualified_fcff_yields = [yield_value for yield_value in fcff_yields if yield_value >= threshold_percentage]
+        print(f"Yields >=10% {qualified_fcff_yields}")
+        # Calculate the average of qualified FCF yields
+        if qualified_fcff_yields:
+            average_5y_fcff_yield = sum(qualified_fcff_yields) // len(qualified_fcff_yields)
+            return average_5y_fcff_yield
+        else:
+            return 0  # Return 0 if there are no qualified FCF yields
+    
+    def calculate_ttm_free_cash_flow(self, fcff_values:list[float]): # most likely will be dataframe
+        """
+        Calculate Trailing Twelve Months (TTM) Free Cash Flow.
+
+        Parameters:
+        - fcff_values (list): List of Free Cash Flow values for each month.
+
+        Returns:
+        - float: TTM Free Cash Flow.
+        """
+        if len(fcff_values) >= 12:
+            ttm_free_cash_flow = sum(fcff_values[-12:])
+            return ttm_free_cash_flow
+        elif len (fcff_values) == 1:
+            return fcff_values[0]
+        else:
+            return 0
+
     
     def run(self) -> None:
         for stock in self.all_tickers:
             # call InteractiveBrokers API to get remaining financial data.
-            ncav = self.calculate_ncav()
+            data_arr = [100, 40] # replace with call to data API
+            ncav = self.calculate_ncav(data_arr[0], data_arr[1])
             if ncav > 0:
-                average_earnings = self.calculate_average_earnings(time_frame=5)
+                average_earnings = self.calculate_average_earnings_yield(time_frame=5)
                 dividends = self.calculate_total_dividends()
                 buyback_value = self.calculate_total_buybacks()
                 payback_rating = self.calculate_payback_rating(average_earnings, dividends, buyback_value)
