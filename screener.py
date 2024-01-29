@@ -4,7 +4,7 @@ import json
 class Screener:
     def __init__(self) -> None:
         self.previously_seen_stocks = list() # call to db
-        self.newly_added = list()
+        self.newly_added = dict()
         self.all_tickers = self.__populate_tickers_arr()
 
     def is_positive_ncav(self)->bool:
@@ -79,6 +79,18 @@ class Screener:
             return fcff_values[0]
         else:
             return 0
+
+    
+    def execute(self, ticker:str, market_caps: list[float], current_assets: float, total_liabilities: float, free_cash_flows: list[float], total_debt: float, cash_and_equivalents: float, dividends_arr:list[float] | None = None) -> None:
+        current_market_cap = market_caps[-1]
+        is_market_cap_below_ncav = current_market_cap <= self.calculate_ncav(current_assets = current_assets, total_liabilities = total_liabilities)
+        is_fcf_yield_greater_than_10 = self.calculate_average_earnings_yield(fcff_values = free_cash_flows, market_cap_values = market_caps) >= 10
+        is_positive_ttm = free_cash_flows[-1] > 0
+        net_debt = self.calculate_net_debt(total_debt, cash_and_equivalents)
+        has_dividends = type(dividends_arr) != None
+        if is_market_cap_below_ncav and is_fcf_yield_greater_than_10 and is_positive_ttm and net_debt <= 0 and has_dividends:
+            # check if ticker is in self.previously_seen_stocks
+            self.newly_added[ticker] = {"Market Cap at or below NCAV": is_market_cap_below_ncav, "Average 5Y annual Free Cash Flow yield at 10%": is_fcf_yield_greater_than_10, "TTM is Positive": is_positive_ttm, "Net-Debt": net_debt, "Has paid dividends or buybacks": has_dividends}
 
     
     def run(self) -> None:
