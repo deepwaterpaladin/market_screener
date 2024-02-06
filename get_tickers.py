@@ -1,7 +1,7 @@
 from playwright.sync_api import Playwright, sync_playwright, expect, TimeoutError
 import json
 import pandas as pd
-
+import time
 def extract_stock_symbols(page):
     # Wait for the table to be rendered (you may need to adjust the waiting time)
     page.wait_for_selector('table.symbol-table tbody')
@@ -19,6 +19,46 @@ def extract_stock_symbols(page):
 
     return symbols
 
+def select_country(page):
+    countries = ['Austria', 'Belgium','Estonia','France', 'Germany', 'Greece', 'Hungary', 'Italy', 
+                'Latvia', 'Lithuania','Netherlands','Poland', 'Portugal', 'Romania', 'Finland', 
+                'Spain', 'Sweden', 'Switzerland', 'United Kingdom', 'New Zeland', 'Russia', 'Czech Republic']
+    missing = ['United States', 'Japan', 'Canada']
+    c_dict = {}
+    page.locator(".tv-screener-market-select").click()
+    for country in countries:
+        page.locator(f"text={country}").click()
+        page.locator("button:has-text(\"Apply\")").click()
+        time.sleep(2)
+        matches_value = page.inner_text('.js-field-total')
+        end = int(matches_value.split(' ')[0])
+        print(f"{end} matches")
+        for i in range(0,end, 50):
+            scroll_to_bottom_and_wait(page)
+        c_dict[country] = extract_stock_symbolsV2(page)
+        print(f'{len(c_dict[country])} tickers added for {country}')
+        page.locator(".tv-screener-market-select").click()
+    return c_dict
+
+
+def get_data(set_data:set, name:str="ticker") -> None:
+    json_file_name = f"{name}.json"
+    with open(json_file_name, 'w') as json_file:
+        json.dump(list(set_data), json_file)
+    print(f"Set converted to JSON and saved to '{json_file_name}'.")
+
+def extract_stock_symbolsV2(page) -> list:
+    # Wait for the table to be present on the page
+    page.wait_for_selector('.tv-data-table__row')
+    
+    # Extract stock symbols
+    symbols = page.evaluate('''() => {
+        const symbolElements = document.querySelectorAll('.tv-data-table__row');
+        // const arr = Array.from(symbolElements, element => element.getAttribute('data-field-key'))
+        return Array.from(symbolElements, element => element.getAttribute('data-symbol'));
+    }''')
+
+    return symbols
 
 def is_locator_present(page):
     try:
@@ -28,11 +68,35 @@ def is_locator_present(page):
     except:
         pass
     
-def get_data(set_data:set) -> None:
-    json_file_name = "tickers.json"
-    with open(json_file_name, 'w') as json_file:
-        json.dump(list(set_data), json_file)
-    print(f"Set converted to JSON and saved to '{json_file_name}'.")
+def scroll_to_bottom_and_wait(page):
+    page.evaluate('''async () => {
+        // Scroll to the bottom of the page
+        window.scrollTo(0, document.body.scrollHeight);
+
+        // Wait for the page to load more content (you may need to adjust the delay based on your specific case)
+        await new Promise(resolve => setTimeout(resolve, 5000));
+    }''')
+
+def run2(playwright: Playwright) -> set():
+    browser = playwright.chromium.launch(headless=False)
+    context = browser.new_context()
+    # Open new page
+    symbols = set()
+    page = context.new_page()
+    page.goto("https://www.tradingview.com/screener/")
+    # Click .close-B02UUUN3
+    page.locator(".close-B02UUUN3").click()
+    fin = select_country(page)
+    # tickers = extract_stock_symbolsV2(page)
+    # print(tickers)
+    # page.pause()
+    # for i in range(1, 206):
+    #     scroll_to_bottom_and_wait(page)
+    #     time.sleep(2.5)
+    #     if i % 10 == 0:
+    #         print(f"{206-i} reloads remaining...")
+    # fin = extract_stock_symbolsV2(page)
+    get_data(fin, "init")
 
 
 def run(playwright: Playwright) -> set():
@@ -75,4 +139,4 @@ def run(playwright: Playwright) -> set():
     browser.close()
 
 with sync_playwright() as playwright:
-    run(playwright)
+    run2(playwright)
