@@ -20,10 +20,9 @@ def extract_stock_symbols(page):
     return symbols
 
 def select_country(page):
-    countries = ['Austria', 'Belgium','Estonia','France', 'Germany', 'Greece', 'Hungary', 'Italy', 
+    countries = ['Japan', 'Canada','Austria', 'Belgium','Estonia','France', 'Germany', 'Greece', 'Hungary', 'Italy', 
                 'Latvia', 'Lithuania','Netherlands','Poland', 'Portugal', 'Romania', 'Finland', 
-                'Spain', 'Sweden', 'Switzerland', 'United Kingdom', 'New Zeland', 'Russia', 'Czech Republic']
-    missing = ['United States', 'Japan', 'Canada']
+                'Spain', 'Sweden', 'Switzerland', 'United Kingdom', 'New Zealand', 'Russia', 'Czech Republic']
     c_dict = {}
     page.locator(".tv-screener-market-select").click()
     for country in countries:
@@ -32,7 +31,7 @@ def select_country(page):
         time.sleep(2)
         matches_value = page.inner_text('.js-field-total')
         end = int(matches_value.split(' ')[0])
-        print(f"{end} matches")
+        print(f"{end} matches for {country}")
         for i in range(0,end, 50):
             scroll_to_bottom_and_wait(page)
         c_dict[country] = extract_stock_symbolsV2(page)
@@ -41,10 +40,10 @@ def select_country(page):
     return c_dict
 
 
-def get_data(set_data:set, name:str="ticker") -> None:
+def get_data(data:dict, name:str="ticker") -> None:
     json_file_name = f"{name}.json"
     with open(json_file_name, 'w') as json_file:
-        json.dump(list(set_data), json_file)
+        json.dump(data, json_file)
     print(f"Set converted to JSON and saved to '{json_file_name}'.")
 
 def extract_stock_symbolsV2(page) -> list:
