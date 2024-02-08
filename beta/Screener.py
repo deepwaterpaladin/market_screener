@@ -13,7 +13,7 @@ class Screener:
         self.tickers = self.__process_tickers(path)
         self.key = os.environ['FMP_KEY_2']
         self.base = "https://financialmodelingprep.com/api/v3/"
-        self.previous = set()
+        self.previous = set() # call to method reading all tickers 
         self.results = dict()
     
     def __read_json_file(self, file_path) -> dict[str:list]:
@@ -202,3 +202,12 @@ class Screener:
         self.results = ret_dict
 
         print(f"Total run time {start_time-datetime.now()}")
+
+    def __remove_previously_seen(self) -> None:
+        drop = [i for i in self.results.keys() if i in self.previous]
+        for i in drop:
+            self.results.pop(i)
+
+
+
+        
