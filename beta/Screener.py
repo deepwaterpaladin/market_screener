@@ -104,7 +104,7 @@ class Screener:
         
         return m
        
-    def __screen_ncav(self, ret_dict:dict[str:dict])->list[str]:
+    def __screen_ncav(self, ret_dict:dict[str:dict], debug:bool = False)->list[str]:
         ctn = 0
         m = []
         for k, v in ret_dict.items():
@@ -121,7 +121,7 @@ class Screener:
 
             # TODO: Remove b4 shipping
             percentage_completed = (ctn + 1) / len(ret_dict) * 100
-            if percentage_completed % 5 == 0:
+            if percentage_completed % 5 == 0 and debug:
                 print(f"Processing: {percentage_completed:.0f}% complete")
         
         return m
@@ -170,7 +170,7 @@ class Screener:
         
         if debug:
             print(f"{len(ret_dict)} Tickers to be screened for step {steps[0]}.")
-        removal_matrix[0] = self.__screen_dividends_and_buybacks(ret_dict)
+        removal_matrix[0] = self.__screen_dividends_and_buybacks(ret_dict, debug=debug)
         print(f"Time to check dividends: {datetime.now() - start_time}")
         for i in removal_matrix[0]:
             ret_dict.pop(i)
@@ -178,7 +178,7 @@ class Screener:
         if debug:
             print(f"{len(ret_dict)} Tickers to be screened for step {steps[1]}.")
         start_market_cap = datetime.now()
-        removal_matrix[1] = self.__screen_ncav(ret_dict)
+        removal_matrix[1] = self.__screen_ncav(ret_dict, debug=debug)
         print(f"Time to check Market Cap <= NCAV: {datetime.now() - start_market_cap}")
         for i in removal_matrix[1]:
             ret_dict.pop(i)
