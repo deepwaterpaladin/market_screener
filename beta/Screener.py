@@ -188,7 +188,7 @@ class Screener:
         start_net_debt = datetime.now()
         removal_matrix[2] = self.__screen_net_debt(ret_dict)
         print(f"Time to check Net Debt: {datetime.now() - start_net_debt}")
-        for i in removal_matrix[2]: # remove tickers without Positive "Net Debt".
+        for i in removal_matrix[2]:
             ret_dict.pop(i)
         
         if debug:
