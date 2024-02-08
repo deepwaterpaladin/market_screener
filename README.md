@@ -24,7 +24,6 @@
 1. create instance of `screener = Sceener(arg= path_to_tickers.json)` object, where `path_to_tickers.json` is the location of the tickers file.
 1. to execute the screener, call `screener.run(debug = False)`. Set `debug= True` if you want to see information regarding the number of stocks screened out & process remaining.
 1. to view the results, call `screener.results`.
-1. to create 
 
 ## Data
 
