@@ -166,7 +166,7 @@ class Screener:
         ticker_arr = [item for sub in self.tickers.values() for item in sub]
         ret_dict = {i:{"Name":str, "HQ Location":str, "Has Dividends or Buybacks": bool, "Net Debt": float, "5Y average yield > 10%": bool, "Market Cap <= NCAV": bool} for i in ticker_arr}
         steps = ['check "Has Dividends"', 'check "Market Cap <= NCAV"', 'check "Net Debt"', 'check "5Y average yield > 10%"','check "whitelist country"']
-        removal_matrix = [[] * len(steps)]
+        removal_matrix = [[] for i in steps]
         
         if debug:
             print(f"{len(ret_dict)} Tickers to be screened for step {steps[0]}.")
