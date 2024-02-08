@@ -121,8 +121,8 @@ def run(playwright: Playwright) -> set():
         try:
             # is_locator_present(page)
             # Extract stock symbols
-            stock_symbols = extract_stock_symbols_V2(page)
-            # stock_symbols = extract_stock_symbols(page)
+            # stock_symbols = extract_stock_symbols_V2(page)
+            stock_symbols = extract_stock_symbols(page)
             print(stock_symbols)
             page.pause()
             page.locator("button:has-text(\"Next\")").click(timeout=1000)
