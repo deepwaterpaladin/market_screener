@@ -1,7 +1,7 @@
-from playwright.sync_api import Playwright, sync_playwright, expect, TimeoutError
+from playwright.sync_api import Playwright, sync_playwright
 import json
-import pandas as pd
 import time
+
 def extract_stock_symbols(page):
     # Wait for the table to be rendered (you may need to adjust the waiting time)
     page.wait_for_selector('table.symbol-table tbody')
