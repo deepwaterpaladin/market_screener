@@ -81,7 +81,7 @@ class Screener:
         response = requests.get(url)
         return response.json()
 
-    def __get_profile(self, ticker: str, span:int = 5) -> str:
+    def __get_profile(self, ticker: str) -> str:
         url = f'https://financialmodelingprep.com/api/v3/profile/{ticker}?apikey={self.key}'
         response = requests.get(url)
         return response.json()
