@@ -10,10 +10,24 @@ from datetime import datetime
 import re
 
 class Sheet:
-    def __init__(self) -> None:
-        self.service_account = gspread.service_account(filename="./service_account.json")
-        self.file = self.service_account.open("screener")
+    def __init__(self, path:str = "./service_account.json", file:str = 'screener') -> None:
+        self.service_account = gspread.service_account(filename = path)
+        self.file = self.service_account.open(file)
         self.today = datetime.now()
+        self._was_sheet_added_today = False
+        self.month_dict = {
+                            1: "Jan",
+                            2: "Feb",
+                            3: "Mar",
+                            4: "Apr",
+                            5: "May",
+                            6: "Jun",
+                            7: "Jul",
+                            8: "Aug",
+                            9: "Sep",
+                            10: "Oct",
+                            11: "Nov",
+                            12: "Dec"}
 
     def __get_worksheet_names(self) -> list[gspread.Worksheet]:
         return self.file.worksheets()
@@ -28,18 +42,20 @@ class Sheet:
     
     def __add_header(self) -> None:
         sheet = self.__get_worksheet_names()[-1]
-        sheet.append_row(values= ["Ticker", "Company Name", "Payback Rating", "NCAV Ratio", "Average Yield", "HQ Country", "Exchange Country"],table_range='A1:G1')
+        sheet.append_row(values= ["Ticker", "Company Name", "NCAV Ratio", "Payback Rating", "Average Yield", "HQ Country", "Exchange Country"],table_range='A1:G1')
 
     def add_row_data(self, data: dict) -> None:
         sheet = self.__get_worksheet_names()[-1]
         itr = 2
         for k, v in data.items():
-            payload = [k, v['Name'], "tbd", "tbd", "tbd", v['HQ Location'], "tbd"]
+            payload = [k, str(v['Name']), "tbd", "tbd", "tbd", str(v['HQ Location']), "tbd"] # TODO: fix this
             sheet.append_row(values= payload, table_range=f'A{itr}:G{itr}')
             itr+=1
         print("data added to spreadsheet.")
     
     def sort_values(self) -> None:
+        # Sort them by NCAV ratio first (lowest at the top).
+        # Sort by payback rating second.
         pass
     
     def get_all_worksheets(self) -> list[gspread.Worksheet]:
@@ -47,15 +63,16 @@ class Sheet:
     
     def create_new_tab(self) -> None:
         try:
-            name = f"{self.today.month}-{self.today.day}-{self.today.year}"
+            name = f"{self.today.day}-{self.month_dict[self.today.month]}-{self.today.year}"
             self.file.add_worksheet(title = name, rows = 0, cols = 0)
             self.__add_header()
             print(f"Sheet {name} added.")
+            self._was_sheet_added_today = True
         except:
             print("Unable to add new tab. Tab already exists.")
     
     def get_previously_seen_tickers(self)-> list[str]:
-        today = f"{self.today.month}-{self.today.day}-{self.today.year}"
+        today = f"{self.today.day}-{self.month_dict[self.today.month]}-{self.today.year}"
         if today == self.__extract_date_from_string(str(self.__get_worksheet_names()[-1])):
             most_recent_sheet = self.__extract_date_from_string(str(self.__get_worksheet_names()[-2]))
         else:

@@ -14,9 +14,9 @@ pd.set_option('display.float_format', lambda x: '%.3f' % x)
 class Screener:
     def __init__(self, path: str= None) -> None:
         self.tickers = self.__process_tickers(path)
-        self.key = os.environ['FMP_KEY_1']
+        self.key = os.environ['FMP_KEY_3']
         self.results = dict()
-        self.sheet_client = Sheet(os.environ['SHEET_KEY'])
+        self.sheet_client = Sheet()
         self.previous = self.sheet_client.get_previously_seen_tickers()
     
     def __read_json_file(self, file_path) -> dict[str:list]:
@@ -157,10 +157,10 @@ class Screener:
         for k, v in ret_dict.items():
             try:
                 profile = self.__get_profile(k)[0]
-                mkt_cap = profile['mktCap']
-                v["Name"] = profile['companyName']
-                v["HQ Location"] = profile['country']
-                if v["HQ Location"] =="CN":
+                mkt_cap = int(profile['mktCap'])
+                v["Name"] = str(profile['companyName'])
+                v["HQ Location"] = str(profile['country'])
+                if v["HQ Location"] == "CN":
                     m.append(k)
                     break
                 five_year_fcf_average = sum([i['freeCashFlow'] for i in self.__get_cashflow(k)])/5
@@ -227,6 +227,8 @@ class Screener:
         print(f"Time to check '5Y average yield > 10%': {datetime.now() - start_fcf_time}")
         for i in removal_matrix[3]:
             ret_dict.pop(i)
+        
+        self.results.update(ret_dict)
     
     def run(self, debug: bool = False) -> None:
         start_time = datetime.now()
@@ -272,7 +274,6 @@ class Screener:
  
     def run_fully_threaded(self, thread_sum: int = 2, debug: bool = False) -> None:
         threads = []
-        fin = {}
         start = datetime.now()
         ticker_arr = [item for sub in self.tickers.values() for item in sub]
         ret_dict = {i:{"Name":str, "HQ Location":str, "Has Dividends or Buybacks": bool, "Net Debt": float, "5Y average yield > 10%": bool, "Market Cap <= NCAV": bool} for i in ticker_arr}
@@ -280,13 +281,11 @@ class Screener:
         for i in range(len(split)):
             thread = Thread(target= self.__handle_threads, args=[split[i], datetime.now(), i == len(split)-1])
             threads.append(thread)
+        for thread in threads:
             thread.start()
         for thread in threads:
             thread.join()
-        for i in split:
-            fin.update(i)
         
-        self.results = fin
         print(f"Total run time {datetime.now() - start}")
      
     def create_xlsx(self, file_path:str) -> None:

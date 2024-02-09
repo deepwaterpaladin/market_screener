@@ -1,6 +1,4 @@
 import json
-from datetime import datetime
-import os
 
 def read_json_file(file_path) ->list[str]:
     with open(file_path, 'r') as file:
