@@ -303,10 +303,10 @@ class Screener:
         cleaned = len(self.results)
         if debug:
             print(f"{starting_size - cleaned} tickers removed (previously present in google sheet).")
-        for k, v in self.results.items():
-            self.sheet_client.add_row_data(v)
-
+        
+        self.sheet_client.add_row_data(self.results)
         self.sheet_client.sort_values()
+        
         if debug:
             print("Google Sheet updated.")
 
