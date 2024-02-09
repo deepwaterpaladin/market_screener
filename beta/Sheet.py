@@ -34,7 +34,7 @@ class Sheet:
         sheet = self.__get_worksheet_names()[-1]
         itr = 2
         for k, v in data.items():
-            payload = [k, v['Name'], "tbd", "tbd", "tbd", v['HQ Location'], "tbd"]
+            payload = [k, str(v['Name']), "tbd", "tbd", "tbd", str(v['HQ Location']), "tbd"] # TODO: fix this
             sheet.append_row(values= payload, table_range=f'A{itr}:G{itr}')
             itr+=1
         print("data added to spreadsheet.")

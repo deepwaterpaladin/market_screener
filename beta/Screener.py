@@ -14,9 +14,9 @@ pd.set_option('display.float_format', lambda x: '%.3f' % x)
 class Screener:
     def __init__(self, path: str= None) -> None:
         self.tickers = self.__process_tickers(path)
-        self.key = os.environ['FMP_KEY_1']
+        self.key = os.environ['FMP_KEY_2']
         self.results = dict()
-        self.sheet_client = Sheet(os.environ['SHEET_KEY'])
+        self.sheet_client = Sheet()
         self.previous = self.sheet_client.get_previously_seen_tickers()
     
     def __read_json_file(self, file_path) -> dict[str:list]:
@@ -227,6 +227,8 @@ class Screener:
         print(f"Time to check '5Y average yield > 10%': {datetime.now() - start_fcf_time}")
         for i in removal_matrix[3]:
             ret_dict.pop(i)
+        
+        self.results.update(ret_dict)
     
     def run(self, debug: bool = False) -> None:
         start_time = datetime.now()
@@ -280,13 +282,11 @@ class Screener:
         for i in range(len(split)):
             thread = Thread(target= self.__handle_threads, args=[split[i], datetime.now(), i == len(split)-1])
             threads.append(thread)
+        for thread in threads:
             thread.start()
         for thread in threads:
             thread.join()
-        for i in split:
-            fin.update(i)
         
-        self.results = fin
         print(f"Total run time {datetime.now() - start}")
      
     def create_xlsx(self, file_path:str) -> None:
@@ -299,7 +299,7 @@ class Screener:
     
     def update_google_sheet(self, debug:bool = False) -> None:
         starting_size = len(self.results)
-        self.__remove_previously_seen()
+        # self.__remove_previously_seen()
         cleaned = len(self.results)
         if debug:
             print(f"{starting_size - cleaned} tickers removed (previously present in google sheet).")
