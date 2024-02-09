@@ -14,7 +14,7 @@ pd.set_option('display.float_format', lambda x: '%.3f' % x)
 class Screener:
     def __init__(self, path: str= None) -> None:
         self.tickers = self.__process_tickers(path)
-        self.key = os.environ['FMP_KEY_2']
+        self.key = os.environ['FMP_KEY_3']
         self.results = dict()
         self.sheet_client = Sheet()
         self.previous = self.sheet_client.get_previously_seen_tickers()
@@ -157,10 +157,10 @@ class Screener:
         for k, v in ret_dict.items():
             try:
                 profile = self.__get_profile(k)[0]
-                mkt_cap = profile['mktCap']
-                v["Name"] = profile['companyName']
-                v["HQ Location"] = profile['country']
-                if v["HQ Location"] =="CN":
+                mkt_cap = int(profile['mktCap'])
+                v["Name"] = str(profile['companyName'])
+                v["HQ Location"] = str(profile['country'])
+                if v["HQ Location"] == "CN":
                     m.append(k)
                     break
                 five_year_fcf_average = sum([i['freeCashFlow'] for i in self.__get_cashflow(k)])/5
@@ -274,7 +274,6 @@ class Screener:
  
     def run_fully_threaded(self, thread_sum: int = 2, debug: bool = False) -> None:
         threads = []
-        fin = {}
         start = datetime.now()
         ticker_arr = [item for sub in self.tickers.values() for item in sub]
         ret_dict = {i:{"Name":str, "HQ Location":str, "Has Dividends or Buybacks": bool, "Net Debt": float, "5Y average yield > 10%": bool, "Market Cap <= NCAV": bool} for i in ticker_arr}
@@ -299,7 +298,7 @@ class Screener:
     
     def update_google_sheet(self, debug:bool = False) -> None:
         starting_size = len(self.results)
-        # self.__remove_previously_seen()
+        self.__remove_previously_seen()
         cleaned = len(self.results)
         if debug:
             print(f"{starting_size - cleaned} tickers removed (previously present in google sheet).")
