@@ -14,7 +14,7 @@ pd.set_option('display.float_format', lambda x: '%.3f' % x)
 class Screener:
     def __init__(self, path: str= None) -> None:
         self.tickers = self.__process_tickers(path)
-        self.key = os.environ['FMP_KEY_3']
+        self.key = os.environ['FMP_KEY_2']
         self.results = dict()
         self.sheet_client = Sheet()
         self.previous = self.sheet_client.get_previously_seen_tickers()
@@ -77,7 +77,7 @@ class Screener:
             return False
     
     def __get_cashflow(self, ticker: str, span:int = 5) -> float:
-        url = f'https://financialmodelingprep.com/api/v3/cash-flow-statement/{ticker}?period=annual&apikey={self.key}&limit={span}'
+        url = f'https://financialmodelingprep.com/api/v3/cash-flow-statement/{ticker}?period=annual&limit={span}&apikey={self.key}'
         response = requests.get(url)
         return response.json()
 
@@ -115,9 +115,16 @@ class Screener:
             try:
                 ctn +=1
                 t = yf.Ticker(k)
-                has_dividends_or_buybacks = self.__has_market_cap_less_than_ncav(t)
-                if has_dividends_or_buybacks:
+                qbs = t.quarterly_balance_sheet
+                total_liabilities = qbs.loc['Total Liabilities Net Minority Interest'][0]
+                current_assets = qbs.loc['Current Assets'][0]
+                market_cap = t.info['marketCap']
+                ncav = current_assets - total_liabilities
+                is_market_cap_less_or_equal_to_ncav = market_cap <= ncav #self.__has_market_cap_less_than_ncav(t)
+                if is_market_cap_less_or_equal_to_ncav:
                     v["Market Cap <= NCAV"] = True
+                    v["Market Capitalization"] = int(market_cap)
+                    v["NCAV Ratio"] = round(market_cap / ncav, 1)
                 else:
                     m.append(k)
             except:
@@ -135,16 +142,18 @@ class Screener:
         for k, v in ret_dict.items(): # check "Net Debt".
             try:
                 ticker = yf.Ticker(k)
-                has_net_debt = ticker.quarterly_balance_sheet.loc['Net Debt'][0] > 0
+                net_debt = ticker.quarterly_balance_sheet.loc['Net Debt'][0]
+                has_net_debt = net_debt > 0
                 if has_net_debt:
-                    v["Net Debt"] = True
+                    v["Net Debt"] = net_debt
                 else:
                     m.append(k)
             except:
                 try:
-                    has_net_debt = ticker.quarterly_balance_sheet.loc["Total Debt"][0] > 0 
+                    net_debt = ticker.quarterly_balance_sheet.loc["Total Debt"][0]
+                    has_net_debt = net_debt > 0 
                     if has_net_debt:
-                        v["Net Debt"] = True
+                        v["Net Debt"] = net_debt
                     else:
                         m.append(k)
                 except:
@@ -154,18 +163,21 @@ class Screener:
 
     def __screen_five_year_yield(self, ret_dict:dict[str:dict]) -> float:
         m = []
+        print(f"{len(ret_dict)} stocks to be screened at `__screen_five_year_yield`")
         for k, v in ret_dict.items():
             try:
                 profile = self.__get_profile(k)[0]
                 mkt_cap = int(profile['mktCap'])
                 v["Name"] = str(profile['companyName'])
                 v["HQ Location"] = str(profile['country'])
-                if v["HQ Location"] == "CN":
-                    m.append(k)
-                    break
-                five_year_fcf_average = sum([i['freeCashFlow'] for i in self.__get_cashflow(k)])/5
+                # if v["HQ Location"] == "CN":
+                #     m.append(k)
+                cashflow = self.__get_cashflow(k)
+                five_year_fcf_average = sum([i['freeCashFlow'] for i in cashflow])/5
+                v["5Y average"] = five_year_fcf_average
                 val = round((five_year_fcf_average/mkt_cap)*100, 2)
                 v['5Y average yield > 10%'] = val
+                v["Cash & Equivalents"] = cashflow[0]["cashAtEndOfPeriod"]
                 if val < 10:
                     m.append(k)
             except:
@@ -193,6 +205,23 @@ class Screener:
 
         return slices
     
+    def __calculate_packback_rating(self) -> None:
+        for k, v in self.results.items():
+            cash_equivalents = v.get("Cash & Equivalents", 0)
+            earnings_average = v.get("5Y average", 0)
+            market_cap = v.get("Market Capitalization", 0)
+            if cash_equivalents > market_cap:
+                v["Payback Rating"] = 0.5
+            elif market_cap <= (cash_equivalents + earnings_average):
+                v["Payback Rating"] = 1
+            elif market_cap <= (cash_equivalents + (earnings_average * 2)):
+                v["Payback Rating"] = 2
+            elif market_cap <= (cash_equivalents + (earnings_average * 3)):
+                v["Payback Rating"] = 3
+            else:
+                v["Payback Rating"] = -1 # remove
+
+
     def __handle_threads(self, ret_dict: dict[str:list], start_time:datetime, debug:bool = False):
         steps = ['check "Has Dividends or Buybacks"', 'check "Market Cap <= NCAV"', 'check "Net Debt"', 'check "5Y average yield > 10%"','check "whitelist country"']
         removal_matrix = [[] for i in steps]
@@ -276,16 +305,24 @@ class Screener:
         threads = []
         start = datetime.now()
         ticker_arr = [item for sub in self.tickers.values() for item in sub]
-        ret_dict = {i:{"Name":str, "HQ Location":str, "Has Dividends or Buybacks": bool, "Net Debt": float, "5Y average yield > 10%": bool, "Market Cap <= NCAV": bool} for i in ticker_arr}
+        ret_dict = {i:{"Name":str, "HQ Location":str, "Has Dividends or Buybacks": bool, "Net Debt": float, "Cash & Equivalents": float, "5Y average yield > 10%": bool, "5Y average": float, "Market Cap <= NCAV": bool, "Market Capitalization": float, "NCAV Ratio": float, "Payback Rating": float} for i in ticker_arr}
         split = self.__split_dict(ret_dict, thread_sum)
         for i in range(len(split)):
-            thread = Thread(target= self.__handle_threads, args=[split[i], datetime.now(), i == len(split)-1])
+            is_last = i == len(split)-1
+            thread = Thread(target= self.__handle_threads, args=[split[i], datetime.now(), is_last])
             threads.append(thread)
         for thread in threads:
             thread.start()
         for thread in threads:
             thread.join()
         
+        print(f"Calculating payback rating for {len(self.results)} Stocks.")
+        self.__calculate_packback_rating()
+        for k, v in self.results.items():
+            if v["Payback Rating"] == -1:
+                self.results.pop(k)
+        
+        print(f"{len(self.results)} stocks remaining.")
         print(f"Total run time {datetime.now() - start}")
      
     def create_xlsx(self, file_path:str) -> None:
