@@ -14,7 +14,7 @@ pd.set_option('display.float_format', lambda x: '%.3f' % x)
 class Screener:
     def __init__(self, path: str= None) -> None:
         self.tickers = self.__process_tickers(path)
-        self.key = os.environ['FMP_KEY_2']
+        self.key = os.environ['CLIENT_FMP_KEY']
         self.results = dict()
         self.sheet_client = Sheet()
         self.previous = self.sheet_client.get_previously_seen_tickers()
@@ -170,8 +170,8 @@ class Screener:
                 mkt_cap = int(profile['mktCap'])
                 v["Name"] = str(profile['companyName'])
                 v["HQ Location"] = str(profile['country'])
-                # if v["HQ Location"] == "CN":
-                #     m.append(k)
+                if v["HQ Location"] == "CN":
+                    m.append(k)
                 cashflow = self.__get_cashflow(k)
                 five_year_fcf_average = sum([i['freeCashFlow'] for i in cashflow])/5
                 v["5Y average"] = five_year_fcf_average
@@ -318,9 +318,13 @@ class Screener:
         
         print(f"Calculating payback rating for {len(self.results)} Stocks.")
         self.__calculate_packback_rating()
+        negative_payback = []
         for k, v in self.results.items():
             if v["Payback Rating"] == -1:
-                self.results.pop(k)
+                negative_payback.append(k)
+        
+        for i in negative_payback:
+            self.results.pop(i)
         
         print(f"{len(self.results)} stocks remaining.")
         print(f"Total run time {datetime.now() - start}")
