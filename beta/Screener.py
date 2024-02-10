@@ -66,16 +66,6 @@ class Screener:
         except:
             return False
         
-    def __has_market_cap_less_than_ncav(self, ticker: yf.Ticker) -> bool:
-        try:
-            qbs = ticker.quarterly_balance_sheet
-            total_liabilities = qbs.loc['Total Liabilities Net Minority Interest'][0]
-            current_assets = qbs.loc['Current Assets'][0]
-            market_cap = ticker.info['marketCap']
-            return market_cap <= (current_assets - total_liabilities)
-        except:
-            return False
-    
     def __get_cashflow(self, ticker: str, span:int = 5) -> float:
         url = f'https://financialmodelingprep.com/api/v3/cash-flow-statement/{ticker}?period=annual&limit={span}&apikey={self.key}'
         response = requests.get(url)
@@ -188,7 +178,10 @@ class Screener:
     def __remove_previously_seen(self) -> None:
         drop = [i for i in self.results.keys() if i in self.previous]
         for i in drop:
-            self.results.pop(i)
+            try:
+                self.results.pop(i)
+            except:
+                continue
     
     def __split_dict(self, input_dict: dict, num_slices: int) -> list[dict]:
         dict_items = list(input_dict.items())
@@ -220,6 +213,9 @@ class Screener:
                 v["Payback Rating"] = 3
             else:
                 v["Payback Rating"] = -1 # remove
+
+    def __sort_results_dict(self)->None:
+        self.results = dict(sorted(self.results.items(), key=lambda x: (x[1]["NCAV Ratio"], x[1]["Payback Rating"])))
 
 
     def __handle_threads(self, ret_dict: dict[str:list], start_time:datetime, debug:bool = False):
@@ -255,7 +251,10 @@ class Screener:
         removal_matrix[3] = self.__screen_five_year_yield(ret_dict)
         print(f"Time to check '5Y average yield > 10%': {datetime.now() - start_fcf_time}")
         for i in removal_matrix[3]:
-            ret_dict.pop(i)
+            try:
+                ret_dict.pop(i)
+            except:
+                continue
         
         self.results.update(ret_dict)
     
@@ -330,6 +329,7 @@ class Screener:
         print(f"Total run time {datetime.now() - start}")
      
     def create_xlsx(self, file_path:str) -> None:
+        self.__sort_results_dict()
         if len(self.results) == 0:
             print(f'ERROR: results dictionary is empty. Execute `Screener.run()` to screen the stocks. If you are still seeing this after running `Screener.run()`, there are no new stocks from the previous execution.')
         else:
@@ -340,6 +340,7 @@ class Screener:
     def update_google_sheet(self, debug:bool = False) -> None:
         starting_size = len(self.results)
         self.__remove_previously_seen()
+        self.__sort_results_dict()
         cleaned = len(self.results)
         if debug:
             print(f"{starting_size - cleaned} tickers removed (previously present in google sheet).")
