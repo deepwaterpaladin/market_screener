@@ -12,19 +12,44 @@ load_dotenv()
 pd.set_option('display.float_format', lambda x: '%.3f' % x)
 
 class Screener:
+    """
+    The `Screener` class is designed to screen and analyze stocks based on various criteria such as dividends, market cap,
+    net debt, and five-year average yield. It leverages Yahoo Finance (yfinance), Financial Modeling Prep (FMP) API, and Google Sheets.
+    """
+    
     def __init__(self, path: str= None) -> None:
         self.tickers = self.__process_tickers(path)
         self.key = os.environ['CLIENT_FMP_KEY']
+        self.sorted = bool
         self.results = dict()
         self.sheet_client = Sheet()
         self.previous = self.sheet_client.get_previously_seen_tickers()
     
     def __read_json_file(self, file_path) -> dict[str:list]:
+        """
+        Reads a JSON file and returns its content as a dictionary.
+
+        Parameters:
+        - `file_path` (str): The path to the JSON file.
+
+        Returns:
+        - `dict`: A dictionary containing the content of the JSON file.
+        """
         with open(file_path, 'r') as file:
             data = json.load(file)
         return data
     
     def __process_tickers(self, path: str= None, tickers: dict[str:list] = None) -> dict[str:list]:
+        """
+        Processes tickers from a JSON file.
+
+        Parameters:
+        - `path` (str): The path to the JSON file containing stock tickers. Defaults to None.
+        - `tickers` (dict): A dictionary of tickers. Defaults to None.
+
+        Returns:
+        - `dict`: A dictionary containing processed tickers.
+        """
         t = self.__read_json_file(path)
         clean = {
                     'Japan': '.T',
@@ -57,6 +82,15 @@ class Screener:
         return t
     
     def __has_dividends_or_buybacks(self, ticker: yf.Ticker) -> bool:
+        """
+        Checks if a stock has dividends or buybacks.
+
+        Parameters:
+        - `ticker` (yf.Ticker): The Ticker object for the stock.
+
+        Returns:
+        - `bool`: True if the stock has dividends or buybacks, False otherwise.
+        """
         has_dividends = ticker.dividends.sum() > 0
         if has_dividends:
             return True
@@ -67,11 +101,30 @@ class Screener:
             return False
         
     def __get_cashflow(self, ticker: str, span:int = 5) -> float:
+        """
+        Retrieves cash flow data for a given stock.
+
+        Parameters:
+        - `ticker` (str): The stock ticker symbol.
+        - `span` (int): The number of years to retrieve cash flow data. Defaults to 5.
+
+        Returns:
+        - `float`: The cash flow data for the stock.
+        """
         url = f'https://financialmodelingprep.com/api/v3/cash-flow-statement/{ticker}?period=annual&limit={span}&apikey={self.key}'
         response = requests.get(url)
         return response.json()
 
     def __get_profile(self, ticker: str) -> str:
+        """
+        Retrieves profile information for a given stock.
+
+        Parameters:
+        - `ticker` (str): The stock ticker symbol.
+
+        Returns:
+        - `str`: The profile information for the stock.
+        """
         url = f'https://financialmodelingprep.com/api/v3/profile/{ticker}?apikey={self.key}'
         response = requests.get(url)
         return response.json()
@@ -99,6 +152,16 @@ class Screener:
         return m
        
     def __screen_ncav(self, ret_dict:dict[str:dict], debug:bool = False) -> list[str]:
+        """
+        Screens stocks based on Market Cap <= NCAV (Net Current Asset Value).
+
+        Parameters:
+        - `ret_dict` (dict): A dictionary containing stock information to be screened.
+        - `debug` (bool): If True, prints debug information. Defaults to False.
+
+        Returns:
+        - `list[str]`: A list of tickers that did not meet the screening criteria.
+        """
         ctn = 0
         m = []
         for k, v in ret_dict.items():
@@ -128,6 +191,15 @@ class Screener:
         return m
 
     def __screen_net_debt(self, ret_dict:dict[str:dict]) -> list[str]:
+        """
+        Screens stocks based on Net Debt.
+
+        Parameters:
+        - `ret_dict` (dict): A dictionary containing stock information to be screened.
+
+        Returns:
+        - `list[str]`: A list of tickers that did not meet the screening criteria.
+        """
         m = []
         for k, v in ret_dict.items(): # check "Net Debt".
             try:
@@ -152,6 +224,15 @@ class Screener:
         return m
 
     def __screen_five_year_yield(self, ret_dict:dict[str:dict]) -> float:
+        """
+        Screens stocks based on five-year average yield.
+
+        Parameters:
+        - `ret_dict` (dict): A dictionary containing stock information to be screened.
+
+        Returns:
+        - `list[str]`: A list of tickers that did not meet the screening criteria.
+        """
         m = []
         print(f"{len(ret_dict)} stocks to be screened at `__screen_five_year_yield`")
         for k, v in ret_dict.items():
@@ -175,15 +256,32 @@ class Screener:
         
         return m 
 
-    def __remove_previously_seen(self) -> None:
+    def __remove_previously_seen(self) -> list[str]:
+        """
+        Removes tickers that have been previously seen in Google Sheets.
+
+        Returns:
+        - `None`
+        """
         drop = [i for i in self.results.keys() if i in self.previous]
         for i in drop:
             try:
                 self.results.pop(i)
             except:
                 continue
+        return drop
     
     def __split_dict(self, input_dict: dict, num_slices: int) -> list[dict]:
+        """
+        Splits a dictionary into a specified number of slices.
+
+        Parameters:
+        - `input_dict` (dict): The dictionary to be split.
+        - `num_slices` (int): The number of slices.
+
+        Returns:
+        - `list[dict]`: A list of dictionaries, each representing a slice. Used by `__handle_threads`.
+        """
         dict_items = list(input_dict.items())
         slice_size = len(dict_items) // num_slices
         remainder = len(dict_items) % num_slices
@@ -198,7 +296,13 @@ class Screener:
 
         return slices
     
-    def __calculate_packback_rating(self) -> None:
+    def __calculate_packback_rating(self) -> bool:
+        """
+        Calculates the payback rating for the screening results.
+
+        Returns:
+        - `bool`
+        """
         for k, v in self.results.items():
             cash_equivalents = v.get("Cash & Equivalents", 0)
             earnings_average = v.get("5Y average", 0)
@@ -213,12 +317,28 @@ class Screener:
                 v["Payback Rating"] = 3
             else:
                 v["Payback Rating"] = -1 # remove
+        
+        return True
 
     def __sort_results_dict(self)->None:
+        """
+        Sort the results dictionary in place first by "NCAV Ratio" (lowest to highest)
+        and then by "Payback Rating" (lowest to highest).
+        """
         self.results = dict(sorted(self.results.items(), key=lambda x: (x[1]["NCAV Ratio"], x[1]["Payback Rating"])))
 
-
     def __handle_threads(self, ret_dict: dict[str:list], start_time:datetime, debug:bool = False):
+        """
+        Handles threaded execution of screening steps.
+
+        Parameters:
+        - `ret_dict` (dict): A dictionary containing stock information to be screened.
+        - `start_time` (datetime): The start time of the screening process.
+        - `debug` (bool): If True, prints debug information. Defaults to False.
+
+        Returns:
+        - `None`
+        """
         steps = ['check "Has Dividends or Buybacks"', 'check "Market Cap <= NCAV"', 'check "Net Debt"', 'check "5Y average yield > 10%"','check "whitelist country"']
         removal_matrix = [[] for i in steps]
 
@@ -258,6 +378,41 @@ class Screener:
         
         self.results.update(ret_dict)
     
+    def __convert_countries(self) -> None:
+        """
+        Converts stock tickers to their corresponding exchange locations and updates the 'Exchange Location' field in the results.
+        This method iterates over the stock tickers in the results and updates the 'Exchange Location' field based on the last part of the ticker.
+        """
+        exchange_dict = {
+            "PA":"France",
+            "TO":"Canada",
+            "T":"Japan",
+            "L":"United Kingdom",
+            "VI":"Austria",
+            "BR":"Belgium",
+            "TL":"Estonia",
+            "DE":"Germany",
+            "AT":"Greece",
+            "BD":"Hungary",
+            "MI":"Italy",
+            "RG":"Latvia",
+            "VS":"Lithuania",
+            "AS":"Netherlands",
+            "LS":"Portugal",
+            "HE":"Finland",
+            "MC":"Spain",
+            "ST":"Sweden",
+            "NZ":"New Zealand",
+            "PR":"Czech Republic",
+            "SW":"Switzerland"
+        }
+        for k, v in self.results.items():
+            if '.' in k:
+                split = k.split('.')
+                v["Exchange Location"] = exchange_dict[split[-1]]
+            else:
+                v["Exchange Location"] = "United States"
+
     def run(self, debug: bool = False) -> None:
         start_time = datetime.now()
         ticker_arr = [item for sub in self.tickers.values() for item in sub]
@@ -300,11 +455,19 @@ class Screener:
 
         print(f"Total run time {datetime.now() - start_time}")
  
-    def run_fully_threaded(self, thread_sum: int = 2, debug: bool = False) -> None:
+    async def run_fully_threaded(self, thread_sum: int = 2, debug: bool = False) -> None:
+        """
+        Run the screening process using multiple threads.
+
+        Parameters:
+            thread_sum (int): Number of threads to use.
+                             Defaults to 2.
+            debug (bool): Whether to print debug information. Defaults to False.
+        """
         threads = []
         start = datetime.now()
         ticker_arr = [item for sub in self.tickers.values() for item in sub]
-        ret_dict = {i:{"Name":str, "HQ Location":str, "Has Dividends or Buybacks": bool, "Net Debt": float, "Cash & Equivalents": float, "5Y average yield > 10%": bool, "5Y average": float, "Market Cap <= NCAV": bool, "Market Capitalization": float, "NCAV Ratio": float, "Payback Rating": float} for i in ticker_arr}
+        ret_dict = {i:{"Name":str, "HQ Location":str, "Exchange Location":str, "Has Dividends or Buybacks": bool, "Net Debt": float, "Cash & Equivalents": float, "5Y average yield > 10%": bool, "5Y average": float, "Market Cap <= NCAV": bool, "Market Capitalization": float, "NCAV Ratio": float, "Payback Rating": float} for i in ticker_arr}
         split = self.__split_dict(ret_dict, thread_sum)
         for i in range(len(split)):
             is_last = i == len(split)-1
@@ -316,7 +479,8 @@ class Screener:
             thread.join()
         
         print(f"Calculating payback rating for {len(self.results)} Stocks.")
-        self.__calculate_packback_rating()
+        previously_seen = await self.__calculate_packback_rating()
+        self.sorted = await self.__convert_countries()
         negative_payback = []
         for k, v in self.results.items():
             if v["Payback Rating"] == -1:
@@ -329,6 +493,15 @@ class Screener:
         print(f"Total run time {datetime.now() - start}")
      
     def create_xlsx(self, file_path:str) -> None:
+        """
+        Creates an Excel file with the screening results.
+
+        Parameters:
+        - `file_path` (str): The path to the Excel file.
+
+        Returns:
+        - `None`
+        """
         self.__sort_results_dict()
         if len(self.results) == 0:
             print(f'ERROR: results dictionary is empty. Execute `Screener.run()` to screen the stocks. If you are still seeing this after running `Screener.run()`, there are no new stocks from the previous execution.')
@@ -338,6 +511,16 @@ class Screener:
             print(f"File saved to {file_path}")
     
     def update_google_sheet(self, debug:bool = False) -> None:
+        """
+        Method to create an Excel file with the screening results.
+
+        Parameters:
+        - `file_path` (str): The path to the Excel file.
+
+        Returns:
+        - `None`
+        """
+        self.sheet_client.create_new_tab()
         starting_size = len(self.results)
         self.__remove_previously_seen()
         self.__sort_results_dict()
@@ -350,6 +533,4 @@ class Screener:
         
         if debug:
             print("Google Sheet updated.")
-
-
-    
+   
