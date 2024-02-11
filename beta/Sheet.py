@@ -44,8 +44,7 @@ class Sheet:
             payload = [k, str(v['Name']), v["NCAV Ratio"], v["Payback Rating"], v["5Y average"], str(v['HQ Location']), v["Exchange Location"]]
             sheet.append_row(values= payload, table_range=f'A{itr}:G{itr}')
             itr+=1
-        
-        self.__format_cell_as_dollar(sheet, itr - 1, 3, itr - 1, 5)
+
         print("data added to spreadsheet.")
     
     def get_all_worksheets(self) -> list[gspread.Worksheet]:
@@ -59,34 +58,7 @@ class Sheet:
             print(f"Sheet {name} added.")
             self._was_sheet_added_today = True
         except:
-            print("Unable to add new tab. Tab already exists.")
-    
-    def __format_cell_as_dollar(self, worksheet, start_row, start_col, end_row, end_col) -> None:
-        format_request = {
-            "requests": [
-                {
-                    "repeatCell": {
-                        "range": {
-                            "startRowIndex": start_row - 1,
-                            "endRowIndex": end_row,
-                            "startColumnIndex": start_col - 1,
-                            "endColumnIndex": end_col,
-                        },
-                        "cell": {
-                            "userEnteredFormat": {
-                                "numberFormat": {
-                                    "type": "CURRENCY",
-                                    "pattern": "\"$\"#,##0.00",
-                                }
-                            }
-                        },
-                        "fields": "userEnteredFormat.numberFormat",
-                    }
-                }
-            ]
-        }
-
-        worksheet.batch_update(format_request)
+            print("Unable to add new tab. Tab already exists.")    
     
     def get_previously_seen_tickers(self)-> list[str]:
         today = f"{self.today.day}-{self.month_dict[self.today.month]}-{self.today.year}"

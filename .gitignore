@@ -1,4 +1,4 @@
 *.env
 .vscode/
-.__pycache__/
-./beta/*.json
+.beta/__pycache__/
+./beta/service_account.json

@@ -234,7 +234,6 @@ class Screener:
         - `list[str]`: A list of tickers that did not meet the screening criteria.
         """
         m = []
-        print(f"{len(ret_dict)} stocks to be screened at `__screen_five_year_yield`")
         for k, v in ret_dict.items():
             try:
                 profile = self.__get_profile(k)[0]
@@ -296,12 +295,12 @@ class Screener:
 
         return slices
     
-    def __calculate_packback_rating(self) -> bool:
+    def __calculate_packback_rating(self) -> None:
         """
         Calculates the payback rating for the screening results.
 
         Returns:
-        - `bool`
+        - `None`
         """
         for k, v in self.results.items():
             cash_equivalents = v.get("Cash & Equivalents", 0)
@@ -317,8 +316,6 @@ class Screener:
                 v["Payback Rating"] = 3
             else:
                 v["Payback Rating"] = -1 # remove
-        
-        return True
 
     def __sort_results_dict(self)->None:
         """
@@ -455,7 +452,7 @@ class Screener:
 
         print(f"Total run time {datetime.now() - start_time}")
  
-    async def run_fully_threaded(self, thread_sum: int = 2, debug: bool = False) -> None:
+    def run_fully_threaded(self, thread_sum: int = 2, debug: bool = False) -> None:
         """
         Run the screening process using multiple threads.
 
@@ -479,8 +476,8 @@ class Screener:
             thread.join()
         
         print(f"Calculating payback rating for {len(self.results)} Stocks.")
-        previously_seen = await self.__calculate_packback_rating()
-        self.sorted = await self.__convert_countries()
+        self.__calculate_packback_rating()
+        self.__convert_countries()
         negative_payback = []
         for k, v in self.results.items():
             if v["Payback Rating"] == -1:
