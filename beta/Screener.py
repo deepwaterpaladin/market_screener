@@ -4,6 +4,7 @@ import pandas as pd
 from Sheet import Sheet
 from threading import Thread
 import yfinance as yf
+from time import sleep
 import os
 import requests
 import json
@@ -129,6 +130,20 @@ class Screener:
         response = requests.get(url)
         return response.json()
     
+    def __get_balance_sheet(self, ticker:str) -> str:
+        """
+        Retrieves profile information for a given stock.
+
+        Parameters:
+        - `ticker` (str): The stock ticker symbol.
+
+        Returns:
+        - `str`: The profile information for the stock.
+        """
+        url = f'https://financialmodelingprep.com/api/v3/balance-sheet-statement/{ticker}?apikey={self.key}'
+        response = requests.get(url)
+        return response.json()
+    
     def __screen_dividends_and_buybacks(self, ret_dict:dict[str:dict], rs:list=[], debug:bool = False) -> list[str]:   
         ctn = 0
         m = []
@@ -173,9 +188,9 @@ class Screener:
                 current_assets = qbs.loc['Current Assets'][0]
                 market_cap = t.info['marketCap']
                 ncav = current_assets - total_liabilities
-                is_market_cap_less_or_equal_to_ncav = market_cap <= ncav #self.__has_market_cap_less_than_ncav(t)
-                if is_market_cap_less_or_equal_to_ncav:
-                    v["Market Cap <= NCAV"] = True
+                #is_market_cap_less_or_equal_to_ncav = market_cap <= ncav #self.__has_market_cap_less_than_ncav(t)
+                if ncav > 0:
+                    v["Positive NCAV"] = True
                     v["Market Capitalization"] = int(market_cap)
                     v["NCAV Ratio"] = round(market_cap / ncav, 1)
                 else:
@@ -205,7 +220,7 @@ class Screener:
             try:
                 ticker = yf.Ticker(k)
                 net_debt = ticker.quarterly_balance_sheet.loc['Net Debt'][0]
-                has_net_debt = net_debt > 0
+                has_net_debt = net_debt <= 0
                 if has_net_debt:
                     v["Net Debt"] = net_debt
                 else:
@@ -294,6 +309,15 @@ class Screener:
             start = slice_end
 
         return slices
+
+    def __split_list(self, arr:list[str], n:int) ->list[list[str]]:
+        elements_per_sublist = len(arr) // n
+        sublists = []
+        for i in range(0, len(arr), elements_per_sublist):
+            sublist = arr[i:i + elements_per_sublist]
+            sublists.append(sublist)
+
+        return sublists
     
     def __calculate_packback_rating(self) -> None:
         """
@@ -336,7 +360,7 @@ class Screener:
         Returns:
         - `None`
         """
-        steps = ['check "Has Dividends or Buybacks"', 'check "Market Cap <= NCAV"', 'check "Net Debt"', 'check "5Y average yield > 10%"','check "whitelist country"']
+        steps = ['check "Has Dividends or Buybacks"', 'check "Positive NCAV"', 'check "Net Debt"', 'check "5Y average yield > 10%"','check "whitelist country"']
         removal_matrix = [[] for i in steps]
 
         if debug:
@@ -413,8 +437,8 @@ class Screener:
     def run(self, debug: bool = False) -> None:
         start_time = datetime.now()
         ticker_arr = [item for sub in self.tickers.values() for item in sub]
-        ret_dict = {i:{"Name":str, "HQ Location":str, "Has Dividends or Buybacks": bool, "Net Debt": float, "5Y average yield > 10%": bool, "Market Cap <= NCAV": bool} for i in ticker_arr}
-        steps = ['check "Has Dividends or Buybacks"', 'check "Market Cap <= NCAV"', 'check "Net Debt"', 'check "5Y average yield > 10%"','check "whitelist country"']
+        ret_dict = {i:{"Name":str, "HQ Location":str, "Has Dividends or Buybacks": bool, "Net Debt": float, "5Y average yield > 10%": bool, "Positive NCAV": bool} for i in ticker_arr}
+        steps = ['check "Has Dividends or Buybacks"', 'check "Positive NCAV"', 'check "Net Debt"', 'check "5Y average yield > 10%"','check "whitelist country"']
         removal_matrix = [[] for i in steps]
         
         if debug:
@@ -464,7 +488,7 @@ class Screener:
         threads = []
         start = datetime.now()
         ticker_arr = [item for sub in self.tickers.values() for item in sub]
-        ret_dict = {i:{"Name":str, "HQ Location":str, "Exchange Location":str, "Has Dividends or Buybacks": bool, "Net Debt": float, "Cash & Equivalents": float, "5Y average yield > 10%": bool, "5Y average": float, "Market Cap <= NCAV": bool, "Market Capitalization": float, "NCAV Ratio": float, "Payback Rating": float} for i in ticker_arr}
+        ret_dict = {i:{"Name":str, "HQ Location":str, "Exchange Location":str, "Has Dividends or Buybacks": bool, "Net Debt": float, "Cash & Equivalents": float, "5Y average yield > 10%": bool, "5Y average": float, "Positive NCAV": bool, "Market Capitalization": float, "NCAV Ratio": float, "Payback Rating": float} for i in ticker_arr}
         split = self.__split_dict(ret_dict, thread_sum)
         for i in range(len(split)):
             is_last = i == len(split)-1
@@ -489,6 +513,165 @@ class Screener:
         print(f"{len(self.results)} stocks remaining.")
         print(f"Total run time {datetime.now() - start}")
      
+    def __handle_threadsV2(self, ticker_arr: list[str], start:datetime, debug:bool = False):
+        res = {i:{"Name":str, "HQ Location":str, "Exchange Location":str, "Has Dividends or Buybacks": bool, "Net Debt": float, "Cash & Equivalents": float, "5Y average yield > 10%": bool, "5Y average": float, "Positive NCAV": bool, "Market Capitalization": float, "NCAV Ratio": float, "Payback Rating": float} for i in ticker_arr}
+        ticker_sum = len(ticker_arr)
+        garbage = []
+        timer = datetime.now()
+        for i in range(0, ticker_sum):
+            if i == ticker_sum//2 or i == ticker_sum//4 or i == ticker_sum//8 and debug:
+                print(f"Processed {i}/{ticker_sum}")
+            if i % 9:
+                ex_time = datetime.now() - timer
+                if ex_time.seconds < 60:
+                    sleep((60-ex_time.seconds)+0.5)
+                timer = datetime.now()
+            try:
+                ticker = ticker_arr[i]
+                profile = self.__get_profile(ticker)
+                cashflow = self.__get_cashflow(ticker)
+                balance_sheet = self.__get_balance_sheet(ticker)
+                net_debt = int(balance_sheet[0]["netDebt"])
+                if net_debt > 0:
+                    res.pop(ticker)
+                    continue
+                res[ticker]["Net Debt"] = net_debt   
+            except:
+                garbage.append(ticker)
+                continue 
+            try:
+                div = float(profile[0]["lastDiv"])
+                if div > 0:
+                    res[ticker]["Has Dividends or Buybacks"] = True
+            except:
+                try:
+                    buyback = sum([i["commonStockRepurchased"] for i in cashflow])
+                    if buyback < 0:
+                        res[ticker]["Has Dividends or Buybacks"] = True
+                    else:
+                        garbage.append(ticker)
+                        continue
+                except:
+                    # no buybacks or dividends
+                    garbage.append(ticker)
+                    continue
+            
+            current_assets = int(balance_sheet[0]["totalCurrentAssets"])
+            total_liabilities = int(balance_sheet[0]["totalLiabilities"])
+            ncav = current_assets - total_liabilities
+            if ncav < 0:
+                garbage.append(ticker)
+                continue
+            res[ticker]["Positive NCAV"] = True
+            market_cap = int(profile[0]["mktCap"])
+            res[ticker]["NCAV Ratio"] = round(market_cap / ncav, 1)
+            five_year_fcf_average = sum([i['freeCashFlow'] for i in cashflow])/5
+            res[ticker]["5Y average"] = five_year_fcf_average
+            val = round((five_year_fcf_average/market_cap)*100, 2)
+            if val < 10:
+                garbage.append(ticker)
+                continue
+            res[ticker]['5Y average yield > 10%'] = val
+            res[ticker]["Cash & Equivalents"] = cashflow[0]["cashAtEndOfPeriod"]
+            
+            res[ticker]["Market Capitalization"] = market_cap
+            res[ticker]["Name"] = profile[0]["companyName"]
+            res[ticker]["HQ Location"] = profile[0]["country"]
+            res[ticker]["Exchange Location"] = profile[0]["exchange"]
+            
+        for i in garbage:
+            res.pop(i)
+        self.results.update(res)
+        if debug:
+            print(f"Screening complete. Total Execution Time: {datetime.now() - start}")
+    
+    def run_threadedV2(self, thread_sum: int = 4, debug:bool = False) -> None:
+        ticker_arr = [item for sub in self.tickers.values() for item in sub]
+        split = self.__split_list(ticker_arr, thread_sum)
+        threads = [Thread(target= self.__handle_threadsV2, args=[split[i], datetime.now(), debug]) for i in range(thread_sum)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        
+        if debug:
+            print(f"Calculating payback rating for {len(self.results)} Stocks.")
+        self.__calculate_packback_rating()
+        
+
+    
+    def runV2(self, debug:bool = False) -> None:
+        start = datetime.now()
+        ticker_arr = [item for sub in self.tickers.values() for item in sub]
+        res = {i:{"Name":str, "HQ Location":str, "Exchange Location":str, "Has Dividends or Buybacks": bool, "Net Debt": float, "Cash & Equivalents": float, "5Y average yield > 10%": bool, "5Y average": float, "Positive NCAV": bool, "Market Capitalization": float, "NCAV Ratio": float, "Payback Rating": float} for i in ticker_arr}
+        timer = datetime.now()
+        garbage = []
+        for i in range(0, len(ticker_arr)):
+            if i % 99:
+                ex_time = datetime.now() - timer
+                if ex_time.seconds < 60:
+                    sleep((60-ex_time.seconds)+0.5)
+                timer = datetime.now()
+            ticker = ticker_arr[i]
+            profile = self.__get_profile(ticker)
+            cashflow = self.__get_cashflow(ticker)
+            balance_sheet = self.__get_balance_sheet(ticker)
+            net_debt = int(balance_sheet[0]["netDebt"])
+            if net_debt > 0:
+                res.pop(ticker)
+                continue
+            res[ticker]["Net Debt"] = net_debt       
+            try:
+                div = float(profile[0]["lastDiv"])
+                if div > 0:
+                    res[ticker]["Has Dividends or Buybacks"] = True
+            except:
+                try:
+                    buyback = sum([i["commonStockRepurchased"] for i in cashflow])
+                    if buyback < 0:
+                        res[ticker]["Has Dividends or Buybacks"] = True
+                    else:
+                        garbage.append(ticker)
+                        continue
+                except:
+                    # no buybacks or dividends
+                    garbage.append(ticker)
+                    continue
+            
+            current_assets = int(balance_sheet[0]["totalCurrentAssets"])
+            total_liabilities = int(balance_sheet[0]["totalLiabilities"])
+            ncav = current_assets - total_liabilities
+            if ncav < 0:
+                garbage.append(ticker)
+                continue
+            res[ticker]["Positive NCAV"] = True
+            market_cap = int(profile[0]["mktCap"])
+            res[ticker]["NCAV Ratio"] = round(market_cap / ncav, 1)
+            five_year_fcf_average = sum([i['freeCashFlow'] for i in cashflow])/5
+            res[ticker]["5Y average"] = five_year_fcf_average
+            val = round((five_year_fcf_average/market_cap)*100, 2)
+            if val < 10:
+                garbage.append(ticker)
+                continue
+            res[ticker]['5Y average yield > 10%'] = val
+            res[ticker]["Cash & Equivalents"] = cashflow[0]["cashAtEndOfPeriod"]
+            
+            res[ticker]["Market Capitalization"] = market_cap
+            res[ticker]["Name"] = profile[0]["companyName"]
+            res[ticker]["HQ Location"] = profile[0]["country"]
+            res[ticker]["Exchange Location"] = profile[0]["exchange"]
+            
+        # self.results = res
+        for i in garbage:
+            res.pop(i)
+        
+        self.results.update(res)
+        self.__calculate_packback_rating()
+        if debug:
+            print(f"Screening complete. Total Execution Time: {datetime.now() - start}")
+
+        
+    
     def create_xlsx(self, file_path:str) -> None:
         """
         Creates an Excel file with the screening results.
@@ -526,7 +709,6 @@ class Screener:
             print(f"{starting_size - cleaned} tickers removed (previously present in google sheet).")
         
         self.sheet_client.add_row_data(self.results)
-        self.sheet_client.sort_values()
         
         if debug:
             print("Google Sheet updated.")
