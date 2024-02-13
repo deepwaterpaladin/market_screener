@@ -2,12 +2,13 @@ from datetime import datetime
 from time import sleep
 import aiohttp
 import asyncio
+import os
 import json
 
 class AsyncScreener:
     def __init__(self, path: str):
         self.tickers = self.__process_tickers(path)
-        self.key = "2y6DLo7T46plPhbGntwv2CEKAvzbr6dg"
+        self.key = os.environ['CLIENT_FMP_KEY']
         self.results = {}
         self.negative_paypack_rating = []
 
