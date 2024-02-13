@@ -114,6 +114,8 @@ class Screener:
         """
         url = f'https://financialmodelingprep.com/api/v3/cash-flow-statement/{ticker}?period=annual&limit={span}&apikey={self.key}'
         response = requests.get(url)
+        if response.status_code > 399:
+            print(f"API returned response code: {response.status_code}")
         return response.json()
 
     def __get_profile(self, ticker: str) -> str:
@@ -128,6 +130,8 @@ class Screener:
         """
         url = f'https://financialmodelingprep.com/api/v3/profile/{ticker}?apikey={self.key}'
         response = requests.get(url)
+        if response.status_code > 399:
+            print(f"API returned response code: {response.status_code}")
         return response.json()
     
     def __get_balance_sheet(self, ticker:str) -> str:
@@ -142,6 +146,8 @@ class Screener:
         """
         url = f'https://financialmodelingprep.com/api/v3/balance-sheet-statement/{ticker}?apikey={self.key}'
         response = requests.get(url)
+        if response.status_code > 399:
+            print(f"API returned response code: {response.status_code}")
         return response.json()
     
     def __screen_dividends_and_buybacks(self, ret_dict:dict[str:dict], rs:list=[], debug:bool = False) -> list[str]:   
