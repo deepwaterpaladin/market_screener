@@ -63,8 +63,6 @@ class AsyncScreener:
             'New Zealand': '.NZ',
             'Czech Republic': '.PR',
             'USA': ''}
-        # for k, v in t.items():
-        #     t[k] = [i.split(':')[1]+clean[k] for i in t[k]]
 
         return t
 
@@ -150,32 +148,28 @@ class AsyncScreener:
                             continue
                     except:
                         continue
-                current_assets = int(balance_sheet[0]["totalCurrentAssets"])
-                total_liabilities = int(balance_sheet[0]["totalLiabilities"])
-                ncav = current_assets - total_liabilities
-                if ncav < 0:
-                    continue
-
-                market_cap = int(profile[0]["mktCap"])
-                if market_cap <= 0:
-                    continue
-                five_year_fcf_average = sum(
-                    [i['freeCashFlow'] for i in cashflow])/5
                 try:
+                    current_assets = int(balance_sheet[0]["totalCurrentAssets"])
+                    total_liabilities = int(balance_sheet[0]["totalLiabilities"])
+                    ncav = current_assets - total_liabilities
+                    if ncav < 0:
+                        continue
+                    market_cap = int(profile[0]["mktCap"])
+                    if market_cap <= 0:
+                        continue
+                    five_year_fcf_average = sum(
+                        [i['freeCashFlow'] for i in cashflow])/5
                     average_yield = round(
                         (five_year_fcf_average/market_cap)*100, 2)
-                except:
-                    continue
-                if average_yield < 10:
-                    continue
-                try:
+                    if average_yield < 10:
+                        continue
                     ratio = round(market_cap / ncav, 1)
+                    country = profile[0]["country"]
+                    if country == "CN":
+                        continue
                 except:
                     continue
-
-                country = profile[0]["country"]
-                if country == "CN":
-                    continue
+                
                 self.results[ticker] = {
                     "Name": profile[0]["companyName"],
                     "HQ Location": country,
@@ -193,7 +187,7 @@ class AsyncScreener:
     async def run_async(self, batch_size=100) -> None:
         ticker_arr = [item for sublist in self.tickers.values()
                       for item in sublist]
-        for i in range(0, len(ticker_arr), batch_size):
+        for i in range(0, len(ticker_arr[len(ticker_arr)//2:]), batch_size):
             is_middle = i == len(ticker_arr)//2
             start = datetime.now()
             await self.__handle_tickers(tickers=ticker_arr[i:i+batch_size], debug=is_middle)
