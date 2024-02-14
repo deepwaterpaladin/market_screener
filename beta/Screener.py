@@ -102,16 +102,6 @@ class Screener:
             return False
         
     def __get_cashflow(self, ticker: str, span:int = 5) -> float:
-        """
-        Retrieves cash flow data for a given stock.
-
-        Parameters:
-        - `ticker` (str): The stock ticker symbol.
-        - `span` (int): The number of years to retrieve cash flow data. Defaults to 5.
-
-        Returns:
-        - `float`: The cash flow data for the stock.
-        """
         url = f'https://financialmodelingprep.com/api/v3/cash-flow-statement/{ticker}?period=annual&limit={span}&apikey={self.key}'
         response = requests.get(url)
         if response.status_code > 399:
@@ -255,6 +245,7 @@ class Screener:
         - `list[str]`: A list of tickers that did not meet the screening criteria.
         """
         m = []
+        print(f"{len(ret_dict)} stocks to be screened at `__screen_five_year_yield`")
         for k, v in ret_dict.items():
             try:
                 profile = self.__get_profile(k)[0]
