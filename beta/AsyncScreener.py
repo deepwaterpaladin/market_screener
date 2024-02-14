@@ -187,11 +187,11 @@ class AsyncScreener:
     async def run_async(self, batch_size=100) -> None:
         ticker_arr = [item for sublist in self.tickers.values()
                       for item in sublist]
-        for i in range(0, len(ticker_arr[len(ticker_arr)//2:]), batch_size):
+        for i in range(0, len(ticker_arr), batch_size):
             is_middle = i == len(ticker_arr)//2
             start = datetime.now()
             await self.__handle_tickers(tickers=ticker_arr[i:i+batch_size], debug=is_middle)
             sleep(60-(datetime.now()-start).seconds)
 
         self.__calculate_packback_rating()
-        print(f"{self.results} stocks remaining after screening")
+        print(f"{len(self.results)} stocks remaining after screening")
