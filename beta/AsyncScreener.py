@@ -110,7 +110,7 @@ class AsyncScreener:
             return await response.json()
 
     async def __get_balance_sheet(self, session: aiohttp.ClientSession, ticker: str) -> str:
-        async with session.get(f'https://financialmodelingprep.com/api/v3/balance-sheet-statement/{ticker}?apikey={self.key}') as response:
+        async with session.get(f'https://financialmodelingprep.com/api/v3/balance-sheet-statement/{ticker}?period=quarter&limit=5&apikey={self.key}') as response:
             return await response.json()
 
     async def __handle_tickers(self, tickers: list[str], debug: bool = False) -> None:
@@ -165,7 +165,10 @@ class AsyncScreener:
                         continue
                     ratio = round(market_cap / ncav, 1)
                     country = profile[0]["country"]
+                    industry = profile[0]["industry"]
                     if country == "CN":
+                        continue
+                    if industry[:5] == "Banks" or industry[:9] == "Insurance":
                         continue
                 except:
                     continue
@@ -174,6 +177,7 @@ class AsyncScreener:
                     "Name": profile[0]["companyName"],
                     "HQ Location": country,
                     "Exchange Location": profile[0]["exchange"],
+                    "Industry": industry,
                     "Has Dividends or Buybacks": has_dividends,
                     "Net Debt": net_debt,
                     "Cash & Equivalents": cashflow[0]["cashAtEndOfPeriod"],
