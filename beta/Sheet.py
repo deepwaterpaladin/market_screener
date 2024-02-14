@@ -1,12 +1,5 @@
-################
-# Sheet Schema #
-################
-# Ticker: str | Name: str | Payback Rating: float | NCAV Ratio: float | Average Yield: str(float)% | HQ Country | Exchange Country
-# 
-# Sheet Name: Date
-
-import gspread
 from datetime import datetime
+import gspread
 import re
 
 class Sheet:
@@ -48,15 +41,11 @@ class Sheet:
         sheet = self.__get_worksheet_names()[-1]
         itr = 2
         for k, v in data.items():
-            payload = [k, str(v['Name']), v["NCAV Ratio"], v["Payback Rating"], v["5Y average"], str(v['HQ Location']), "tbd"] # TODO: fix this
+            payload = [k, str(v['Name']), v["NCAV Ratio"], v["Payback Rating"], v["5Y average"], str(v['HQ Location']), v["Exchange Location"]]
             sheet.append_row(values= payload, table_range=f'A{itr}:G{itr}')
             itr+=1
+
         print("data added to spreadsheet.")
-    
-    def sort_values(self) -> None:
-        # Sort them by NCAV ratio first (lowest at the top).
-        # Sort by payback rating second.
-        pass
     
     def get_all_worksheets(self) -> list[gspread.Worksheet]:
         return self.__get_worksheet_names()
@@ -69,7 +58,7 @@ class Sheet:
             print(f"Sheet {name} added.")
             self._was_sheet_added_today = True
         except:
-            print("Unable to add new tab. Tab already exists.")
+            print("Unable to add new tab. Tab already exists.")    
     
     def get_previously_seen_tickers(self)-> list[str]:
         today = f"{self.today.day}-{self.month_dict[self.today.month]}-{self.today.year}"
