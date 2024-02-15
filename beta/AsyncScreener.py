@@ -1,5 +1,7 @@
 from datetime import datetime
+import pandas as pd
 from time import sleep
+from Sheet import Sheet
 import aiohttp
 import asyncio
 import os
@@ -9,8 +11,10 @@ class AsyncScreener:
     def __init__(self, path: str):
         self.tickers = self.__process_tickers(path)
         self.key = os.environ['CLIENT_FMP_KEY']
+        self.sheet_client = Sheet()
         self.results = {}
         self.negative_paypack_rating = []
+        self.previous = self.sheet_client.get_previously_seen_tickers()
 
     def __read_json_file(self, file_path) -> dict[str:list]:
         """
@@ -66,6 +70,28 @@ class AsyncScreener:
 
         return t
 
+    def __sort_results_dict(self) -> None:
+        """
+        Sort the results dictionary in place first by "NCAV Ratio" (lowest to highest)
+        and then by "Payback Rating" (lowest to highest).
+        """
+        self.results = dict(sorted(self.results.items(), key=lambda x: (x[1]["NCAV Ratio"], x[1]["Payback Rating"])))
+    
+    def __remove_previously_seen(self) -> list[str]:
+        """
+        Removes tickers that have been previously seen in Google Sheets.
+
+        Returns:
+        - `None`
+        """
+        drop = [i for i in self.results.keys() if i in self.previous]
+        for i in drop:
+            try:
+                self.results.pop(i)
+            except:
+                continue
+        return drop
+    
     def __calculate_packback_rating(self, debug: bool = False) -> None:
         """
         Calculates the payback rating for the screening results.
@@ -91,6 +117,7 @@ class AsyncScreener:
         for i in self.negative_paypack_rating:
             self.results.pop(i)
 
+        self.__sort_results_dict()
         if debug:
             print(
                 f"Removed {len(self.negative_paypack_rating)} with a negative payback rating.")
@@ -199,3 +226,45 @@ class AsyncScreener:
 
         self.__calculate_packback_rating()
         print(f"{len(self.results)} stocks remaining after screening")
+
+    def create_xlsx(self, file_path:str) -> None:
+        """
+        Creates an Excel file with the screening results.
+
+        Parameters:
+        - `file_path` (str): The path to the Excel file.
+
+        Returns:
+        - `None`
+        """
+        self.__sort_results_dict()
+        if len(self.results) == 0:
+            print(f'ERROR: results dictionary is empty. Execute `Screener.run()` to screen the stocks. If you are still seeing this after running `Screener.run()`, there are no new stocks from the previous execution.')
+        else:
+            df = pd.DataFrame.from_dict(self.results, orient='index')
+            df.to_excel(file_path)
+            print(f"File saved to {file_path}")
+    
+    def update_google_sheet(self, debug:bool = False) -> None:
+        """
+        Method to create an Excel file with the screening results.
+
+        Parameters:
+        - `file_path` (str): The path to the Excel file.
+
+        Returns:
+        - `None`
+        """
+        self.sheet_client.create_new_tab()
+        starting_size = len(self.results)
+        self.__remove_previously_seen()
+        self.__sort_results_dict()
+        cleaned = len(self.results)
+        if debug:
+            print(f"{starting_size - cleaned} tickers removed (previously present in google sheet).")
+        
+        self.sheet_client.add_row_data(self.results)
+        
+        if debug:
+            print("Google Sheet updated.")
+   
