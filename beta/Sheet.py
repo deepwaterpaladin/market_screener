@@ -3,9 +3,9 @@ import gspread
 import re
 
 class Sheet:
-    def __init__(self, path:str = "./service_account.json", file:str = 'screener') -> None:
-        self.service_account = gspread.service_account(filename = path)
-        self.file = self.service_account.open(file)
+    def __init__(self, sheet_path:str = "./service_account.json", file_name:str = 'Screener') -> None:
+        self.service_account = gspread.service_account(filename = sheet_path)
+        self.file = self.service_account.open(file_name)
         self.today = datetime.now()
         self._was_sheet_added_today = False
         self.month_dict = {
@@ -23,7 +23,10 @@ class Sheet:
                             12: "Dec"}
 
     def __get_worksheet_names(self) -> list[gspread.Worksheet]:
-        return self.file.worksheets()
+        try:
+            return self.file.worksheets()
+        except:
+            return []
     
     def __extract_date_from_string(self, input_str):
         pattern = r"'([^']+)'"
@@ -48,7 +51,10 @@ class Sheet:
         print("data added to spreadsheet.")
     
     def get_all_worksheets(self) -> list[gspread.Worksheet]:
-        return self.__get_worksheet_names()
+        try:
+            return self.__get_worksheet_names()
+        except:
+            return []
     
     def create_new_tab(self) -> None:
         try:
@@ -61,9 +67,12 @@ class Sheet:
             print("Unable to add new tab. Tab already exists.")    
     
     def get_previously_seen_tickers(self)-> list[str]:
-        today = f"{self.today.day}-{self.month_dict[self.today.month]}-{self.today.year}"
-        if today == self.__extract_date_from_string(str(self.__get_worksheet_names()[-1])):
-            most_recent_sheet = self.__extract_date_from_string(str(self.__get_worksheet_names()[-2]))
-        else:
-            most_recent_sheet = self.__extract_date_from_string(str(self.__get_worksheet_names()[-1]))
-        return [item for sublist in self.file.values_get(f"{most_recent_sheet}!A2:A100")['values'] for item in sublist]
+        try:
+            today = f"{self.today.day}-{self.month_dict[self.today.month]}-{self.today.year}"
+            if today == self.__extract_date_from_string(str(self.__get_worksheet_names()[-1])):
+                most_recent_sheet = self.__extract_date_from_string(str(self.__get_worksheet_names()[-2]))
+            else:
+                most_recent_sheet = self.__extract_date_from_string(str(self.__get_worksheet_names()[-1]))
+            return [item for sublist in self.file.values_get(f"{most_recent_sheet}!A2:A100")['values'] for item in sublist]
+        except:
+            return []

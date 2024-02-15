@@ -8,10 +8,10 @@ import os
 import json
 
 class AsyncScreener:
-    def __init__(self, path: str):
-        self.tickers = self.__process_tickers(path)
+    def __init__(self, ticker_path: str, sheet_path:str = "./service_account.json"):
+        self.tickers = self.__process_tickers(ticker_path)
         self.key = os.environ['CLIENT_FMP_KEY']
-        self.sheet_client = Sheet()
+        self.sheet_client = Sheet(sheet_path= sheet_path)
         self.results = {}
         self.negative_paypack_rating = []
         self.previous = self.sheet_client.get_previously_seen_tickers()
@@ -193,9 +193,9 @@ class AsyncScreener:
                     ratio = round(market_cap / ncav, 1)
                     country = profile[0]["country"]
                     industry = profile[0]["industry"]
-                    if country == "CN":
+                    if country == "CN" or country == "HK":
                         continue
-                    if industry[:5] == "Banks" or industry[:9] == "Insurance":
+                    if industry[:5] == "Banks" or industry[:9] == "Insurance" or industry[:10] == "Investment" or industry == "Asset Management":
                         continue
                 except:
                     continue
@@ -237,7 +237,6 @@ class AsyncScreener:
         Returns:
         - `None`
         """
-        self.__sort_results_dict()
         if len(self.results) == 0:
             print(f'ERROR: results dictionary is empty. Execute `Screener.run()` to screen the stocks. If you are still seeing this after running `Screener.run()`, there are no new stocks from the previous execution.')
         else:
@@ -258,7 +257,6 @@ class AsyncScreener:
         self.sheet_client.create_new_tab()
         starting_size = len(self.results)
         self.__remove_previously_seen()
-        self.__sort_results_dict()
         cleaned = len(self.results)
         if debug:
             print(f"{starting_size - cleaned} tickers removed (previously present in google sheet).")
