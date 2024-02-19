@@ -3,7 +3,8 @@
 ## Usage - beta
 
 1. create `.env` file & save `FMP_KEY_1 = ****YOUR API KEY HERE****`.
-1. run `screener.ipynb` file.
+1. add `service_account.json` file from google dev portal to `./beta/` directory.
+1. run `beta.ipynb` file.
 1. excel file will be saved to `./output/` directory.
 
 ## Usage - custom
