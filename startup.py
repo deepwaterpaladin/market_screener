@@ -31,6 +31,25 @@ def setup_jupyter() -> None:
     except subprocess.CalledProcessError:
         print("Error occurred while setting up Jupyter.")
 
+def create_env_file() -> None:
+    """
+    Create a .env file if it doesn't exist.
+
+    Writes:
+        A new .env file with a placeholder message.
+    """
+    try:
+        if not os.path.exists(".env"):
+            with open(".env", "w") as f:
+                f.write("FMP_KEY_1 = # *** YOUR API KEY *** ")
+            print(".env file created.")
+        else:
+            print(".env file already exists")
+    except:
+        print("Unable to add .env file")
+
+
 if __name__ == "__main__":
     install_dependencies()
     setup_jupyter()
+    create_env_file()
