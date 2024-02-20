@@ -8,10 +8,10 @@ import os
 import json
 
 class AsyncScreener:
-    def __init__(self, ticker_path: str, sheet_path:str = "./service_account.json"):
+    def __init__(self, ticker_path: str, sheet_path:str = "./service_account.json", sheet_name: str = "Screener"):
         self.tickers = self.__process_tickers(ticker_path)
         self.key = os.environ['CLIENT_FMP_KEY']
-        self.sheet_client = Sheet(sheet_path= sheet_path)
+        self.sheet_client = Sheet(sheet_path= sheet_path, file_name=sheet_name)
         self.results = {}
         self.negative_paypack_rating = []
         self.previous = self.sheet_client.get_previously_seen_tickers()
