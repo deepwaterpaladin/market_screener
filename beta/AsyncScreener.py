@@ -139,6 +139,11 @@ class AsyncScreener:
     async def __get_balance_sheet(self, session: aiohttp.ClientSession, ticker: str) -> str:
         async with session.get(f'https://financialmodelingprep.com/api/v3/balance-sheet-statement/{ticker}?period=quarter&limit=5&apikey={self.key}') as response:
             return await response.json()
+    
+    async def get_all_shares_float(self) -> str:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f'https://financialmodelingprep.com/api/v4/shares_float/all?apikey={self.key}') as response:
+                return await response.json()
 
     async def __handle_tickers(self, tickers: list[str], debug: bool = False) -> None:
         if debug:
