@@ -14,7 +14,7 @@ class AsyncScreener:
         self.sheet_client = Sheet(sheet_path= sheet_path, file_name=sheet_name)
         self.results = {}
         self.negative_paypack_rating = []
-        self.previous = self.sheet_client.get_previously_seen_tickers()
+        self.previous = self.sheet_client.get_all_previously_seen_tickers()
 
     def __read_json_file(self, file_path) -> dict[str:list]:
         """

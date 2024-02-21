@@ -76,3 +76,22 @@ class Sheet:
             return [item for sublist in self.file.values_get(f"{most_recent_sheet}!A2:A100")['values'] for item in sublist]
         except:
             return []
+    
+    def get_all_previously_seen_tickers(self) -> list[str]:
+        '''
+        Returns all tickers seen in the last year (52 weeks).
+        '''
+        seen = []
+        sheets = []
+        all_sheets = self.get_all_worksheets()
+        weeks = len(all_sheets)
+        if weeks > 52:
+            sheets = all_sheets[-52:]
+        else:
+            sheets = all_sheets
+        
+        for sheet in sheets:
+            seen.append(sheet.get_values("A2:A300"))
+        
+        return [i[0] for sub in seen for i in sub]
+        
