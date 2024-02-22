@@ -2,7 +2,7 @@ import asyncio
 from screener.AsyncScreener import AsyncScreener
 
 ticker_path = "./data/cleaned_tickers.json"
-service_account_path = "./beta/service_account.json"
+service_account_path = "./screener/service_account.json"
 sheet_name = "Screener"
 
 
