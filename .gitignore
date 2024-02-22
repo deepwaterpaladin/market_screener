@@ -1,5 +1,5 @@
 *.env
 .vscode/
-/beta/__pycache__
-/beta/*.json
+/screener/__pycache__
+/screener/*.json
 .DS_Store
