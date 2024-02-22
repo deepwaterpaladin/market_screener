@@ -1,7 +1,7 @@
 from datetime import datetime
 import pandas as pd
 from time import sleep
-from Sheet import Sheet
+from screener.Sheet import Sheet
 import aiohttp
 import asyncio
 import os
@@ -10,7 +10,7 @@ import json
 class AsyncScreener:
     def __init__(self, ticker_path: str, sheet_path:str = "./service_account.json", sheet_name: str = "Screener"):
         self.tickers = self.__process_tickers(ticker_path)
-        self.key = os.environ['CLIENT_FMP_KEY']
+        self.key = os.environ['FMP_KEY']
         self.sheet_client = Sheet(sheet_path= sheet_path, file_name=sheet_name)
         self.results = {}
         self.negative_paypack_rating = []

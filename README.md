@@ -9,7 +9,7 @@
 
 ## Usage - custom
 
-1. create `.env` file & save `FMP_KEY_1 = ****YOUR API KEY HERE****`.
+1. create `.env` file & save `FMP_KEY = ****YOUR API KEY HERE****`.
 1. create `custom.ipynb` notebook file.
 1. add imports to first cell in file `from Screener import Screener`.
 1. create instance of `screener = Sceener(arg= path_to_tickers.json)` object, where `path_to_tickers.json` is the location of the tickers file.
