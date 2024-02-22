@@ -2,4 +2,5 @@
 .vscode/
 /screener/__pycache__
 /screener/*.json
+/screener/*.ipynb
 .DS_Store
