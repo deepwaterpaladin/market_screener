@@ -4,25 +4,21 @@
 
 1. run startup file `py startup.py`.
     - this should install required dependencies & create an `.env` file.
-1. within the `.env` file, replace ` # *** YOUR API KEY *** ` with your FMP API key wrapped in quotes. (i.e., `"abc123"`).
-1. add your `service_account.json` file from your Google developer portal.
-1. 
-
-## Usage - application.ipynb
-
-1. create `.env` file & save `FMP_KEY_1 = ****YOUR API KEY HERE****`.
-1. add `service_account.json` file from google dev portal to `./screener/` directory.
-1. run `application.ipynb` file.
-1. excel file will be saved to `./output/` directory.
-
-## Usage - custom
-
-1. create `.env` file & save `FMP_KEY = ****YOUR API KEY HERE****`.
-1. create `custom.ipynb` notebook file.
-1. add imports to first cell in file `from Screener import Screener`.
-1. create instance of `screener = Sceener(arg= path_to_tickers.json)` object, where `path_to_tickers.json` is the location of the tickers file.
-1. to execute the screener, call `screener.run(debug = False)`. Set `debug= True` if you want to see information regarding the number of stocks screened out & process remaining.
-1. to view the results, call `screener.results`.
+2. within the `.env` file, replace ` # *** YOUR API KEY *** ` with your FMP API key wrapped in quotes. (i.e., `"abc123"`).
+3. add your `service_account.json` file from your Google developer portal.
+4. open Task Scheduler on your PC:
+    - under the `Actions` tab on the right side of the application, select `Create Basic Task`
+    - name the task as you wish (i.e., Weekly Screeer)
+    - select `Weekly` trigger
+    - configure the date/time you would like the screener to run (keep in mind the screener takes approximately 200 minutes to fully execute)
+    - configure the action `Start a program`
+    - under `Program/script` provide the path to application.py in the root directory (i.e., `C:\User\Documents\market_screener\application.py`)
+    - review the task configuration & click `Finish`
+5. once the task is created, edit it's properties and select `Settings` to verify the following settings:
+    - Allow task to be run on demand -- enabled
+    - Run task as soon as possible after a scheduled start is missed -- enabled
+    - If the running task does not end when requested, force it to stop
+6. Once the above steps have been completed, the screener will run as configured. 
 
 ## Data
 
