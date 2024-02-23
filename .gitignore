@@ -1,5 +1,6 @@
 *.env
 .vscode/
+/output
 /screener/__pycache__
 /screener/*.json
 /screener/*.ipynb
