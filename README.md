@@ -1,5 +1,13 @@
 # market_screener
 
+## Setup
+
+1. run startup file `py startup.py`.
+    - this should install required dependencies & create an `.env` file.
+1. within the `.env` file, replace ` # *** YOUR API KEY *** ` with your FMP API key wrapped in quotes. (i.e., `"abc123"`).
+1. add your `service_account.json` file from your Google developer portal.
+1. 
+
 ## Usage - application.ipynb
 
 1. create `.env` file & save `FMP_KEY_1 = ****YOUR API KEY HERE****`.
