@@ -16,7 +16,7 @@
     - This will clone the repository where the application is stored.
     - It will also initilize a git repository on your local machine.
     - Git is a version control software that allows you to track changes.
-1. Follow the steps under `Setup` in `README.md`.
+1. Follow the steps 1-3 under `Setup` in `README.md`.
 
 
 ## Check for Updates
