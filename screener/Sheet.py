@@ -93,5 +93,8 @@ class Sheet:
         for sheet in sheets:
             seen.append(sheet.get_values("A2:A300"))
         
-        return [i[0] for sub in seen for i in sub]
+        try:
+            return [i[0] for sub in seen for i in sub]
+        except:
+            return []
         
