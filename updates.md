@@ -10,7 +10,7 @@
 ## Download Screener
 
 1. Open VSCode
-1. Open the integrated term`CTRL + ` (backtick)` (on widows) `CMD + ` (backtick)` (on Mac)
+1. Open the integrated term`CTRL + ``` (backtick)` (on widows) `CMD + ` (backtick)` (on Mac)
 1. In the terminal, run the command `cd {path_to_where_you_want_application_saved}`
 1. In the same terminal, run the command `git clone https://github.com/deepwaterpaladin/market_screener.git`
   - this will clone the repository where the application is stored.
