@@ -13,8 +13,9 @@
 1. Open the integrated term ```CTRL + ` (backtick)``` (on widows) ```CMD + ` (backtick)``` (on Mac)
 1. In the terminal, run the command `cd {path_to_where_you_want_application_saved}`
 1. In the same terminal, run the command `git clone https://github.com/deepwaterpaladin/market_screener.git`
-  - this will clone the repository where the application is stored.
-  - it will also initilize a git repository on your local machine. git is a version control software that allows you to track changes 
+    - This will clone the repository where the application is stored.
+    - It will also initilize a git repository on your local machine.
+    - Git is a version control software that allows you to track changes 
 1. Follow the steps under `Setup` in `README.md`
 
 
