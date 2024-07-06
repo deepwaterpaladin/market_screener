@@ -1,11 +1,14 @@
 from datetime import datetime
-import pandas as pd
+from dotenv import load_dotenv
 from time import sleep
 from screener.Sheet import Sheet
+import pandas as pd
 import aiohttp
 import asyncio
 import os
 import json
+
+load_dotenv()
 
 class AsyncScreener:
     def __init__(self, ticker_path: str, sheet_path:str = "./service_account.json", sheet_name: str = "Screener"):
