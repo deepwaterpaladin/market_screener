@@ -133,15 +133,24 @@ class AsyncScreener:
 
     async def __get_profile(self, session: aiohttp.ClientSession, ticker: str) -> str:
         async with session.get(f'https://financialmodelingprep.com/api/v3/profile/{ticker}?apikey={self.key}') as response:
-            return await response.json()
+            try:
+                return await response.json()
+            except Exception as e:
+                pass
 
     async def __get_cashflow(self, session: aiohttp.ClientSession, ticker: str) -> str:
         async with session.get(f'https://financialmodelingprep.com/api/v3/cash-flow-statement/{ticker}?period=annual&limit=5&apikey={self.key}') as response:
-            return await response.json()
+            try:
+                return await response.json()
+            except Exception as e:
+                pass
 
     async def __get_balance_sheet(self, session: aiohttp.ClientSession, ticker: str) -> str:
         async with session.get(f'https://financialmodelingprep.com/api/v3/balance-sheet-statement/{ticker}?period=quarter&limit=5&apikey={self.key}') as response:
-            return await response.json()
+            try:
+                return await response.json()
+            except Exception as e:
+                pass
     
     async def get_all_shares_float(self) -> str:
         async with aiohttp.ClientSession() as session:
@@ -230,7 +239,7 @@ class AsyncScreener:
             is_middle = i == len(ticker_arr)//2
             start = datetime.now()
             await self.__handle_tickers(tickers=ticker_arr[i:i+batch_size], debug=is_middle)
-            sleep(60-(datetime.now()-start).seconds)
+            sleep(61-(datetime.now()-start).seconds)
 
         self.__calculate_packback_rating()
         print(f"{len(self.results)} stocks remaining after screening")
