@@ -1,0 +1,6 @@
+market_screeener params:
+- No stocks from China or Hong Kong
+- Stock must have positive net debt (net debt > 0)
+- Stock must have paid divendends OR repurchased in the past 12 months (1 year)
+- Stock must have positive NCAV ((current_assets - total_liabilities) > 0)
+- Stock must have an average 5 year free cash flow yield greater than 10%
