@@ -1,6 +1,24 @@
 market_screeener params:
-- No stocks from China or Hong Kong
-- Stock must have positive net debt (net debt > 0)
-- Stock must have paid divendends OR repurchased in the past 12 months (1 year)
-- Stock must have positive NCAV ((current_assets - total_liabilities) > 0)
-- Stock must have an average 5 year free cash flow yield greater than 10%
+    - No stocks from China or Hong Kong
+    - If a stock satisfies ALL of the following, include it in the screener:
+    - Stock must have positive net debt (net debt > 0)
+    - Stock must have paid divendends OR repurchased in the past 12 months (1 year)
+    - Stock must have positive NCAV ((current_assets - total_liabilities) > 0)
+    - Stock must have an average 5 year free cash flow yield greater than 10%
+
+market_screeenerV2 params:
+    - No stocks from China, Hong Kong, or Macau
+    - If a stock satisfies ANY of the following, include it in the screener:
+        - NCAV Ratio LESS THAN 2    
+        - EnterpriseValue/FreeCashFlow Ratio between 1 - 5
+        - TBV Ratio between 0.1 - 1.0
+        - P/E ratio between 1 and 10
+
+Calculations:
+    NCAV Ratio: As it currently displays BUT only return stocks with a ratio below 2.
+
+    EV/FCF Ratio: The calculation is as follows: Enterprise Value (last fiscal interim) divided by 'Earnings': Most recent 5Y Free-Cash-Flow figures (Annual And TTM) added together and divided by 5. This is how we currently calculate earnings in the existing screener). Return any stocks with a ratio between 1 and 5.
+
+    TBV Ratio: The calculation is as follows: Current Market Cap divided by Tangible Book Value (I assume TBV will be delivered via the API as a readymade figure but let me know if not). Return all stocks with a ratio between 0.1 and 1.0
+
+    P/E Ratio: The calculation is as follows: Current Market Cap divided by the 5Y average FCF earnings figure (as calculated above and by the existing scanner). Return all stocks with a ratio between 1 and 10.
