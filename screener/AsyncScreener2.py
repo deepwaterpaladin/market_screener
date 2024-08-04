@@ -10,29 +10,13 @@ import os
 
 load_dotenv()
 
-# Data needed:
-#   - NCAV Ratio (2 API calls):
-#       - market_cap (profile endpoint: https://financialmodelingprep.com/api/v3/profile/{ticker}?apikey={self.key})
-#       - current_assets (balance sheet endpoint: https://financialmodelingprep.com/api/v3/balance-sheet-statement/{ticker}?period=quarter&limit=5&apikey={self.key}')
-#       - total_liabilities (balance sheet endpoint: https://financialmodelingprep.com/api/v3/balance-sheet-statement/{ticker}?period=quarter&limit=5&apikey={self.key}')
-#   - EnterpriseValue by FreeCashFlow Ratio (2 API calls)
-#       - enterprise_value (key metrics endpoint: https://financialmodelingprep.com/api/v3/key-metrics/AAPL?period=annual&apikey=c1d88fddc1ed1f9e664304c787b35bfd)
-#       - cashflow (cashflow endpoint: https://financialmodelingprep.com/api/v3/cash-flow-statement/{ticker}?period=annual&limit=5&apikey={self.key})
-#   - Tangible Book Value Ratio (1 API call)
-#       - tangible_book_value (key metrics endpoint: https://financialmodelingprep.com/api/v3/key-metrics/AAPL?period=annual&apikey=c1d88fddc1ed1f9e664304c787b35bfd)
-#       - market_cap
-#   - P/E Ratio (1 API call)
-#       - P/E Ratio (key metrics endpoint: https://financialmodelingprep.com/api/v3/key-metrics/AAPL?period=annual&apikey=c1d88fddc1ed1f9e664304c787b35bfd)
-        
-
 class AsyncScreener2:
     def __init__(self, ticker_path: str) -> None:
         self.tickers = process_tickers(ticker_path)
         self.key = os.environ['FMP_KEY']
         self.industry_blacklist = ['Banks', 'Insurance']
-        self.results = {}
-        self.industry_blacklist_tickers = []
-        # {"TICKER":{"TBV Ratio":int, "EnterpriseValue/FreeCashFlow Ratio": int,"NCAV Ratio":int, "P/E Ratio": int }}
+        self.results = dict
+        self.industry_blacklist_tickers = list
     
     async def __get_data(self, session: aiohttp.ClientSession, ticker: str) -> tuple:
         profile = await self.__get_profile(session, ticker)
@@ -54,8 +38,8 @@ class AsyncScreener2:
                 pass
 
     async def __handle_screener(self, tickers: list[str], debug: bool = False) -> None:
-        if debug:
-            print(f"{debug}/{len(self.tickers)} batches processed...")
+        # if debug:
+        #     print(f"{debug}/{len(self.tickers)} batches processed...")
         async with aiohttp.ClientSession() as session:
             tasks = [self.__get_data(session, ticker) for ticker in tickers]
             results = await asyncio.gather(*tasks)
@@ -90,7 +74,6 @@ class AsyncScreener2:
                     isBlacklist = False
                     for bli in self.industry_blacklist:
                         if bli in profile[0]['industry']:
-                            # print(f"{ticker} in blacklist for being in the following industry: {profile[0]['industry']}")
                             isBlacklist = True
                             self.industry_blacklist_tickers.append(ticker)
                     if not isBlacklist:
@@ -107,13 +90,11 @@ class AsyncScreener2:
     
     async def run_async(self, batch_size:int=150) -> None:
         tickers_arr = [i for sublist in self.tickers.values() for i in sublist]
-        print(f"Screening {len(tickers_arr)} stocks...\nEstimated run time: ~{len(tickers_arr)//batch_size} minutes...\n")
-        d = 0
+        print(f"Screening {len(tickers_arr)} stocks...\nEstimated run time: ~{(len(tickers_arr)//batch_size)+2} minutes...\n")
         for i in range(0, len(tickers_arr), batch_size):
             is_middle = i == len(tickers_arr)//2
             start = datetime.now()
-            await self.__handle_screener(tickers=tickers_arr[i:i+batch_size], debug=d)
-            d+=1
+            await self.__handle_screener(tickers=tickers_arr[i:i+batch_size], debug=is_middle)
             sleep(61-(datetime.now()-start).seconds)
         self.__clean_results()
         print(f"{len(self.results)} stocks remaining after screening")
@@ -131,7 +112,7 @@ class AsyncScreener2:
         """
         if len(self.results) == 0:
             print(f'ERROR: results dictionary is empty. Execute `await AsyncScreener2.run_async()` to screen the stocks. If you are still seeing this after running `Screener.run()`, there are no new stocks from the previous execution.')
-        else:
-            df = pd.DataFrame.from_dict(self.results, orient='index')
-            df.to_excel(file_path)
-            print(f"File saved to {file_path}")
+            return None
+        df = pd.DataFrame.from_dict(self.results, orient='index')
+        df.to_excel(file_path)
+        print(f"File saved to {file_path}")
