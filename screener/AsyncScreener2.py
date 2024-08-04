@@ -15,8 +15,8 @@ class AsyncScreener2:
         self.tickers = process_tickers(ticker_path)
         self.key = os.environ['FMP_KEY']
         self.industry_blacklist = ['Banks', 'Insurance']
-        self.results = dict
-        self.industry_blacklist_tickers = list
+        self.results = dict()
+        self.industry_blacklist_tickers = list()
     
     async def __get_data(self, session: aiohttp.ClientSession, ticker: str) -> tuple:
         profile = await self.__get_profile(session, ticker)
@@ -95,7 +95,9 @@ class AsyncScreener2:
             is_middle = i == len(tickers_arr)//2
             start = datetime.now()
             await self.__handle_screener(tickers=tickers_arr[i:i+batch_size], debug=is_middle)
-            sleep(61-(datetime.now()-start).seconds)
+            rem = 61-(datetime.now()-start).seconds
+            if rem > 0:
+                sleep(rem)
         self.__clean_results()
         print(f"{len(self.results)} stocks remaining after screening")
     
