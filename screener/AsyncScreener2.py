@@ -86,25 +86,17 @@ class AsyncScreener2:
                     res["NCAV Ratio"] = round(mc/ncav, 3)
                     if ncav > 0 and ncav < 2:
                         res["isAdded"] = True
-
-                except Exception as e:
-                    print(f"Issue with {ticker}")
-                    self.industry_blacklist_tickers.append(ticker)
-                    pass
-                
-                isBlacklist = False
-                try:
+                    
+                    isBlacklist = False
                     for bli in self.industry_blacklist:
                         if bli in profile[0]['industry']:
                             # print(f"{ticker} in blacklist for being in the following industry: {profile[0]['industry']}")
                             isBlacklist = True
                             self.industry_blacklist_tickers.append(ticker)
+                    if not isBlacklist:
+                        self.results[ticker] = res
                 except Exception as e:
-                    print(f"Issue with {ticker}")
-                    self.industry_blacklist_tickers.append(ticker)
                     pass
-                if not isBlacklist:
-                    self.results[ticker] = res
 
     
     def __clean_results(self) -> None:
