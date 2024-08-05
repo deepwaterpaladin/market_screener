@@ -45,28 +45,40 @@ class AsyncScreener2:
             results = await asyncio.gather(*tasks)
             for ticker, (profile, key_metrics) in zip(tickers, results):
                 # check if pass TBV  & P/E Ratio
-                res = {"TBV Ratio":0, "EnterpriseValue":0, "EnterpriseValue/FreeCashFlow Ratio": 0,"NCAV Ratio":0, "P/E Ratio": 0, "isAdded":False}
+                res = {"P/TBV Ratio":0, "Enterprise Value":0, "EV/aFCF Ratio": 0,"NCAV Ratio":0, "P/aFCF Ratio": 0, "isAdded":False}
                 try:
+                    # CalculateP/aFCF Ratio
+                    pfcf_ratio = round(key_metrics[0]['pfcfRatio'], 3)
+                    
+                    # Calculate P/TBV Ratio
                     tbv = key_metrics[0]['tangibleAssetValue'] + key_metrics[0]['intangiblesToTotalAssets']
                     mc = key_metrics[0]['marketCap']
                     tbv_ratio = mc/tbv
-                    res["TBV Ratio"] = round(tbv_ratio, 3)
+                    res["P/TBV Ratio"] = round(tbv_ratio, 3)
                     pe_ratio = key_metrics[0]['peRatio']
-                    res["P/E Ratio"] = round(pe_ratio, 3)
-                    if (tbv_ratio >= 0.1 and tbv_ratio <= 0.9) and (pe_ratio > 1 and pe_ratio < 10):
+                    res["P/aFCF Ratio"] = round(pe_ratio, 3)
+                    if (tbv_ratio >= 0.1 and tbv_ratio <= 0.9) and (pfcf_ratio > 0 and pfcf_ratio < 10):
                         res["isAdded"] = True
+                        res["Reason"] = "P/P/TBV Ratio between 0.1 and 0.9 and P/aFCF Ratio of 10 or less."
                     
                     # Calculate EV and FC
-                    res["EnterpriseValue"] = int(key_metrics[0]['enterpriseValue'])
-                    res["EnterpriseValue/FreeCashFlow Ratio"] = round(key_metrics[0]['evToFreeCashFlow'], 3)
-                    if res["EnterpriseValue/FreeCashFlow Ratio"] > 1 and res["EnterpriseValue/FreeCashFlow Ratio"] < 5:
+                    res["Enterprise Value"] = int(key_metrics[0]['enterpriseValue'])
+                    if res["Enterprise Value"] < 0 and (pfcf_ratio > 0 and pfcf_ratio < 10):
                         res["isAdded"] = True
+                        res["Reason"] = "EV below 0 and P/aFCF Ratio of 10 or less."
+                    
+                    # Calculate EV Yield
+                    res["EV/aFCF Ratio"] = round(key_metrics[0]['evToFreeCashFlow'], 3)
+                    if res["EV/aFCF Ratio"] > 1 and res["EV/aFCF Ratio"] < 5:
+                        res["isAdded"] = True
+                        res["Reason"] = "EV/aFCF Ratio of between 1 and 5"
 
                     # Calculate NCAV
                     ncav = key_metrics[0]['netCurrentAssetValue']
                     res["NCAV Ratio"] = round(mc/ncav, 3)
-                    if ncav > 0 and ncav < 2.5:
+                    if (ncav > 0 and ncav < 2.5) and (pfcf_ratio > 0 and pfcf_ratio < 10):
                         res["isAdded"] = True
+                        res["Reason"] = "NCAV Ratio below 2.5 and P/aFCF Ratio of 10 or less."
                     
                     isBlacklist = False
                     for bli in self.industry_blacklist:
@@ -78,12 +90,12 @@ class AsyncScreener2:
                 except Exception as e:
                     pass
 
-    def __check_pe(self, debug:bool=False) -> None:
-        bad_pe = [key for key, val in self.results.items() if not (val['P/E Ratio'] > 0 and val['P/E Ratio'] < 10)]
+    def __check_pafcf(self, debug:bool=False) -> None:
+        bad_pe = [key for key, val in self.results.items() if not (val['P/aFCF Ratio'] > 0 and val['P/aFCF Ratio'] < 10)]
         for bad in bad_pe:
             self.results.pop(bad, None)
         if debug:
-            print(f"{len(bad_pe)} removed for P/E")
+            print(f"{len(bad_pe)} removed for P/aFCF Ratio")
 
 
     def __clean_results(self, debug:bool=False) -> None:
@@ -92,9 +104,16 @@ class AsyncScreener2:
             self.results.pop(tr, None)
 
     
+    def __calculate_runtime(self, number_of_batches:int, batch_size:int) -> int:
+        est_seconds = number_of_batches * 61
+        minutes, seconds = divmod(est_seconds, 60)
+
+        return minutes
+    
+    
     async def run_async(self, batch_size:int=150) -> None:
         tickers_arr = [i for sublist in self.tickers.values() for i in sublist]
-        print(f"Screening {len(tickers_arr)} stocks...\nEstimated run time: ~{(len(tickers_arr)//batch_size)+2} minutes...\n")
+        print(f"Screening {len(tickers_arr)} stocks...\nEstimated run time: ~{self.__calculate_runtime(len(tickers_arr)//batch_size, batch_size)} minute(s)...\n")
         for i in range(0, len(tickers_arr), batch_size):
             is_middle = i == len(tickers_arr)//2
             start = datetime.now()
@@ -103,7 +122,7 @@ class AsyncScreener2:
             if rem > 0:
                 sleep(rem)
         self.__clean_results()
-        self.__check_pe(True)
+        self.__check_pafcf(True)
         print(f"{len(self.results)} stocks remaining after screening")
     
     
