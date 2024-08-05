@@ -50,15 +50,15 @@ class AsyncScreener2:
                     tbv = key_metrics[0]['tangibleAssetValue'] + key_metrics[0]['intangiblesToTotalAssets']
                     mc = key_metrics[0]['marketCap']
                     tbv_ratio = mc/tbv
-                    res["TBV Ratio"] = tbv_ratio
+                    res["TBV Ratio"] = round(tbv_ratio, 3)
                     pe_ratio = key_metrics[0]['peRatio']
-                    res["P/E Ratio"] = pe_ratio
+                    res["P/E Ratio"] = round(pe_ratio, 3)
                     if (tbv_ratio >= 0.1 and tbv_ratio <= 0.9) and (pe_ratio > 1 and pe_ratio < 10):
                         res["isAdded"] = True
                     
                     # Calculate EV and FC
-                    res["EnterpriseValue"] = key_metrics[0]['enterpriseValue']
-                    res["EnterpriseValue/FreeCashFlow Ratio"] = key_metrics[0]['evToFreeCashFlow']
+                    res["EnterpriseValue"] = int(key_metrics[0]['enterpriseValue'])
+                    res["EnterpriseValue/FreeCashFlow Ratio"] = round(key_metrics[0]['evToFreeCashFlow'], 3)
                     if res["EnterpriseValue/FreeCashFlow Ratio"] > 1 and res["EnterpriseValue/FreeCashFlow Ratio"] < 5:
                         res["isAdded"] = True
 
