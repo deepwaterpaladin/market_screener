@@ -45,7 +45,7 @@ class AsyncScreener2:
             results = await asyncio.gather(*tasks)
             for ticker, (profile, key_metrics) in zip(tickers, results):
                 # check if pass TBV  & P/E Ratio
-                res = {"TBV Ratio":int, "EnterpriseValue":int, "EnterpriseValue/FreeCashFlow Ratio": int,"NCAV Ratio":int, "P/E Ratio": int, "isAdded":False}
+                res = {"TBV Ratio":0, "EnterpriseValue":0, "EnterpriseValue/FreeCashFlow Ratio": 0,"NCAV Ratio":0, "P/E Ratio": 0, "isAdded":False}
                 try:
                     tbv = key_metrics[0]['tangibleAssetValue'] + key_metrics[0]['intangiblesToTotalAssets']
                     mc = key_metrics[0]['marketCap']
