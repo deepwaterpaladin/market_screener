@@ -90,8 +90,6 @@ class AsyncScreener2:
         to_remove = [key for key, val in self.results.items() if not val["isAdded"]]
         for tr in to_remove:
             self.results.pop(tr, None)
-        if debug:
-            print(f"{len(to_remove)} removed for P/E")
 
     
     async def run_async(self, batch_size:int=150) -> None:
@@ -104,8 +102,8 @@ class AsyncScreener2:
             rem = 61-(datetime.now()-start).seconds
             if rem > 0:
                 sleep(rem)
-        self.__check_pe(True)
         self.__clean_results()
+        self.__check_pe(True)
         print(f"{len(self.results)} stocks remaining after screening")
     
     
