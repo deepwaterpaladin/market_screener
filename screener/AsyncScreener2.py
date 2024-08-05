@@ -51,13 +51,10 @@ class AsyncScreener2:
                     mc = key_metrics[0]['marketCap']
                     tbv_ratio = mc/tbv
                     res["TBV Ratio"] = tbv_ratio
-                    if tbv_ratio > 0 and tbv_ratio < 1:
-                        pe_ratio = key_metrics[0]['peRatio']
-                        res["P/E Ratio"] = pe_ratio
-                        if pe_ratio > 1 and pe_ratio < 10:
-                            res["isAdded"] = True
-                        else:
-                            continue
+                    pe_ratio = key_metrics[0]['peRatio']
+                    res["P/E Ratio"] = pe_ratio
+                    if (tbv_ratio >= 0.1 and tbv_ratio <= 0.9) and (pe_ratio > 1 and pe_ratio < 10):
+                        res["isAdded"] = True
                     
                     # Calculate EV and FC
                     res["EnterpriseValue"] = key_metrics[0]['enterpriseValue']
@@ -68,7 +65,7 @@ class AsyncScreener2:
                     # Calculate NCAV
                     ncav = key_metrics[0]['netCurrentAssetValue']
                     res["NCAV Ratio"] = round(mc/ncav, 3)
-                    if ncav > 0 and ncav < 2:
+                    if ncav > 0 and ncav < 2.5:
                         res["isAdded"] = True
                     
                     isBlacklist = False
@@ -81,11 +78,20 @@ class AsyncScreener2:
                 except Exception as e:
                     pass
 
-    
-    def __clean_results(self) -> None:
+    def __check_pe(self, debug:bool=False) -> None:
+        bad_pe = [key for key, val in self.results.items() if not (val['P/E Ratio'] > 0 and val['P/E Ratio'] < 10)]
+        for bad in bad_pe:
+            self.results.pop(bad, None)
+        if debug:
+            print(f"{len(bad_pe)} removed for P/E")
+
+
+    def __clean_results(self, debug:bool=False) -> None:
         to_remove = [key for key, val in self.results.items() if not val["isAdded"]]
         for tr in to_remove:
             self.results.pop(tr, None)
+        if debug:
+            print(f"{len(to_remove)} removed for P/E")
 
     
     async def run_async(self, batch_size:int=150) -> None:
@@ -98,6 +104,7 @@ class AsyncScreener2:
             rem = 61-(datetime.now()-start).seconds
             if rem > 0:
                 sleep(rem)
+        self.__check_pe(True)
         self.__clean_results()
         print(f"{len(self.results)} stocks remaining after screening")
     
