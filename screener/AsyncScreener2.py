@@ -36,7 +36,7 @@ class AsyncScreener2:
                 return await response.json()
             except Exception as e:
                 pass
-
+    
     async def __handle_screener(self, tickers: list[str], debug: bool = False) -> None:
         # if debug:
         #     print(f"{debug}/{len(self.tickers)} batches processed...")
@@ -45,7 +45,7 @@ class AsyncScreener2:
             results = await asyncio.gather(*tasks)
             for ticker, (profile, key_metrics) in zip(tickers, results):
                 # check if pass TBV  & P/E Ratio
-                res = {"P/TBV Ratio":0, "Enterprise Value":0, "EV/aFCF Ratio": 0,"NCAV Ratio":0, "P/aFCF Ratio": 0, "isAdded":False}
+                res = {"Name":str(), "P/TBV Ratio":0, "Enterprise Value":0, "EV/aFCF Ratio": 0,"NCAV Ratio":0, "P/aFCF Ratio": 0, "isAdded":False}
                 try:
                     # CalculateP/aFCF Ratio
                     pfcf_ratio = round(key_metrics[0]['pfcfRatio'], 3)
@@ -85,7 +85,8 @@ class AsyncScreener2:
                         if bli in profile[0]['industry']:
                             isBlacklist = True
                             self.industry_blacklist_tickers.append(ticker)
-                    if not isBlacklist:
+                    if not isBlacklist and (profile[0]["country"] != "CN" or profile[0]["country"] != "HK"):
+                        res["Name"] = profile[0]["companyName"]
                         self.results[ticker] = res
                 except Exception as e:
                     pass
