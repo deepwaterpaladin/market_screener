@@ -75,6 +75,11 @@ class AsyncScreener2:
                     if pfcfRatio > 0 and pfcfRatio < 10:
                         res["isAdded"] = True
                     
+                    evFCF = key_metrics[0]["evToFreeCashFlow"]
+                    res["EV/aFCF"] = evFCF
+                    if evFCF > 1 and evFCF < 5:
+                        res["isAdded"] = True
+                    
                     isBlacklist = False
                     for bli in self.industry_blacklist:
                         if bli in profile[0]['industry']:
@@ -163,7 +168,7 @@ class AsyncScreener2:
         return minutes
     
     
-    async def run_async(self, batch_size:int=150) -> None:
+    async def run_async(self, batch_size:int=100) -> None:
         tickers_arr = [i for sublist in self.tickers.values() for i in sublist]
         print(f"Screening {len(tickers_arr)} stocks...\nEstimated run time: ~{self.__calculate_runtime(len(tickers_arr)//batch_size, batch_size)} minute(s)...\n")
         for i in range(0, len(tickers_arr), batch_size):
