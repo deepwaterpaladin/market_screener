@@ -10,6 +10,12 @@ import os
 
 load_dotenv()
 
+# calcs at issue:
+#   - NCAV ratio [X]
+#   - P/aFCF ratio [X]
+#   - P/TBV ratio [ ]
+#   - EV/aFCF ratio [ ]
+
 class AsyncScreener2:
     def __init__(self, ticker_path: str) -> None:
         self.tickers = process_tickers(ticker_path)
@@ -21,10 +27,18 @@ class AsyncScreener2:
     async def __get_data(self, session: aiohttp.ClientSession, ticker: str) -> tuple:
         profile = await self.__get_profile(session, ticker)
         key_metrics = await self.__get_key_metrics(session, ticker)
-        return profile, key_metrics
+        balance_sheet = await self.__get_balance_sheet(session, ticker)
+        return profile, key_metrics, balance_sheet
+    
+    async def __get_balance_sheet(self, session: aiohttp.ClientSession, ticker: str) -> str:
+        async with session.get(f'https://financialmodelingprep.com/api/v3/balance-sheet-statement/{ticker}?period=quarter&limit=5&apikey={self.key}') as response:
+            try:
+                return await response.json()
+            except Exception as e:
+                pass
     
     async def __get_key_metrics(self, session: aiohttp.ClientSession, ticker: str) -> str:
-        async with session.get(f'https://financialmodelingprep.com/api/v3/key-metrics/{ticker}?period=annual&apikey={self.key}') as response:
+        async with session.get(f'https://financialmodelingprep.com/api/v3/key-metrics/{ticker}?period=quarter&apikey={self.key}') as response:
             try:
                 return await response.json()
             except Exception as e:
@@ -36,6 +50,43 @@ class AsyncScreener2:
                 return await response.json()
             except Exception as e:
                 pass
+    
+    async def __handle_screener2(self, tickers: list[str], debug: bool = False) -> None:
+        # if debug:
+        #     print(f"{debug}/{len(self.tickers)} batches processed...")
+        async with aiohttp.ClientSession() as session:
+            tasks = [self.__get_data(session, ticker) for ticker in tickers]
+            results = await asyncio.gather(*tasks)
+            for ticker, (profile, key_metrics, balance_sheet) in zip(tickers, results):
+                res = {"Name":str(), "isAdded": False}
+                try:
+                    current_assets = int(balance_sheet[0]["totalCurrentAssets"])
+                    total_liabilities = int(balance_sheet[0]["totalLiabilities"])
+                    market_cap = int(profile[0]["mktCap"])
+                    ncav = current_assets - total_liabilities
+                    ratio = round(market_cap / ncav, 1)
+                    res["NCAV"] = ncav
+                    res["NCAV Ratio"] = ratio
+                    if ratio > 0 and ratio < 2.5:
+                        res["isAdded"] = True
+                    
+                    pfcfRatio = key_metrics[0]["pfcfRatio"]
+                    res["P/aFCF Ratio"] = pfcfRatio
+                    if pfcfRatio > 0 and pfcfRatio < 10:
+                        res["isAdded"] = True
+                    
+                    isBlacklist = False
+                    for bli in self.industry_blacklist:
+                        if bli in profile[0]['industry']:
+                            isBlacklist = True
+                            self.industry_blacklist_tickers.append(ticker)
+                    if profile[0]["country"] != "CN" and profile[0]["country"] != "HK":
+                        res["Name"] = profile[0]["companyName"]
+                        res["Country"] = profile[0]["country"]
+                        self.results[ticker] = res
+                except Exception as e:
+                    pass
+
     
     async def __handle_screener(self, tickers: list[str], debug: bool = False) -> None:
         # if debug:
@@ -118,12 +169,12 @@ class AsyncScreener2:
         for i in range(0, len(tickers_arr), batch_size):
             is_middle = i == len(tickers_arr)//2
             start = datetime.now()
-            await self.__handle_screener(tickers=tickers_arr[i:i+batch_size], debug=is_middle)
+            await self.__handle_screener2(tickers=tickers_arr[i:i+batch_size], debug=is_middle)
             rem = 61-(datetime.now()-start).seconds
             if rem > 0:
                 sleep(rem)
         self.__clean_results()
-        self.__check_pafcf(True)
+        # self.__check_pafcf(True)
         print(f"{len(self.results)} stocks remaining after screening")
     
     
