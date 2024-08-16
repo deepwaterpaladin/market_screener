@@ -28,7 +28,8 @@ class AsyncScreener2:
         profile = await self.__get_profile(session, ticker)
         key_metrics = await self.__get_key_metrics(session, ticker)
         balance_sheet = await self.__get_balance_sheet(session, ticker)
-        return profile, key_metrics, balance_sheet
+        cashflow = await self.__get_cashflow(session, ticker)
+        return profile, key_metrics, balance_sheet, cashflow
     
     async def __get_balance_sheet(self, session: aiohttp.ClientSession, ticker: str) -> str:
         async with session.get(f'https://financialmodelingprep.com/api/v3/balance-sheet-statement/{ticker}?period=quarter&limit=5&apikey={self.key}') as response:
@@ -51,13 +52,20 @@ class AsyncScreener2:
             except Exception as e:
                 pass
     
+    async def __get_cashflow(self, session: aiohttp.ClientSession, ticker: str) -> str:
+        async with session.get(f'https://financialmodelingprep.com/api/v3/cash-flow-statement/{ticker}?period=annual&limit=5&apikey={self.key}') as response:
+            try:
+                return await response.json()
+            except Exception as e:
+                pass
+    
     async def __handle_screener2(self, tickers: list[str], debug: bool = False) -> None:
         # if debug:
         #     print(f"{debug}/{len(self.tickers)} batches processed...")
         async with aiohttp.ClientSession() as session:
             tasks = [self.__get_data(session, ticker) for ticker in tickers]
             results = await asyncio.gather(*tasks)
-            for ticker, (profile, key_metrics, balance_sheet) in zip(tickers, results):
+            for ticker, (profile, key_metrics, balance_sheet, cashflow) in zip(tickers, results):
                 res = {"Name":str(), "isAdded": False}
                 try:
                     current_assets = int(balance_sheet[0]["totalCurrentAssets"])
@@ -70,12 +78,22 @@ class AsyncScreener2:
                     if ratio > 0 and ratio < 2.5:
                         res["isAdded"] = True
                     
-                    pfcfRatio = key_metrics[0]["pfcfRatio"]
+                    
+                    five_year_fcf_average = sum(
+                        [i['freeCashFlow'] for i in cashflow])/5
+                    average_yield = round(
+                        (five_year_fcf_average/market_cap)*100, 2)
+                    
+                    
+                    # pfcfRatio = key_metrics[0]["pfcfRatio"]
+                    pfcfRatio = average_yield
                     res["P/aFCF Ratio"] = pfcfRatio
                     if pfcfRatio > 0 and pfcfRatio < 10:
                         res["isAdded"] = True
                     
-                    evFCF = key_metrics[0]["evToFreeCashFlow"]
+                    # evFCF = key_metrics[0]["evToFreeCashFlow"]
+                    ev = key_metrics[0]["enterpriseValue"]
+                    evFCF = ev/five_year_fcf_average
                     res["EV/aFCF"] = evFCF
                     if evFCF > 1 and evFCF < 5:
                         res["isAdded"] = True
