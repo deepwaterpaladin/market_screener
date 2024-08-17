@@ -72,29 +72,23 @@ class AsyncScreener2:
                     total_liabilities = int(balance_sheet[0]["totalLiabilities"])
                     market_cap = int(profile[0]["mktCap"])
                     ncav = current_assets - total_liabilities
-                    ratio = round(market_cap / ncav, 1)
+                    ratio = round(market_cap / ncav, 2)
                     res["NCAV"] = ncav
                     res["NCAV Ratio"] = ratio
                     if ratio > 0 and ratio < 2.5:
                         res["isAdded"] = True
                     
                     
-                    five_year_fcf_average = sum(
-                        [i['freeCashFlow'] for i in cashflow])/5
-                    average_yield = round(
-                        (five_year_fcf_average/market_cap)*100, 2)
+                    five_year_fcf_average = sum([i['freeCashFlow'] for i in cashflow])/5
+                    pfcfRatio = market_cap/five_year_fcf_average
                     
-                    
-                    # pfcfRatio = key_metrics[0]["pfcfRatio"]
-                    pfcfRatio = average_yield
-                    res["P/aFCF Ratio"] = pfcfRatio
+                    res["P/aFCF Ratio"] = round(pfcfRatio, 2)
                     if pfcfRatio > 0 and pfcfRatio < 10:
                         res["isAdded"] = True
                     
-                    # evFCF = key_metrics[0]["evToFreeCashFlow"]
                     ev = key_metrics[0]["enterpriseValue"]
                     evFCF = ev/five_year_fcf_average
-                    res["EV/aFCF"] = evFCF
+                    res["EV/aFCF"] = round(evFCF, 2)
                     if evFCF > 1 and evFCF < 5:
                         res["isAdded"] = True
                     
@@ -111,60 +105,6 @@ class AsyncScreener2:
                     pass
 
     
-    async def __handle_screener(self, tickers: list[str], debug: bool = False) -> None:
-        # if debug:
-        #     print(f"{debug}/{len(self.tickers)} batches processed...")
-        async with aiohttp.ClientSession() as session:
-            tasks = [self.__get_data(session, ticker) for ticker in tickers]
-            results = await asyncio.gather(*tasks)
-            for ticker, (profile, key_metrics) in zip(tickers, results):
-                # check if pass TBV  & P/E Ratio
-                res = {"Name":str(), "P/TBV Ratio":0, "Enterprise Value":0, "EV/aFCF Ratio": 0,"NCAV Ratio":0, "P/aFCF Ratio": 0, "isAdded":False}
-                try:
-                    # CalculateP/aFCF Ratio
-                    pfcf_ratio = round(key_metrics[0]['pfcfRatio'], 3)
-                    
-                    # Calculate P/TBV Ratio
-                    tbv = key_metrics[0]['tangibleAssetValue'] + key_metrics[0]['intangiblesToTotalAssets']
-                    mc = key_metrics[0]['marketCap']
-                    tbv_ratio = mc/tbv
-                    res["P/TBV Ratio"] = round(tbv_ratio, 3)
-                    pe_ratio = key_metrics[0]['peRatio']
-                    res["P/aFCF Ratio"] = round(pe_ratio, 3)
-                    if (tbv_ratio >= 0.1 and tbv_ratio <= 0.9) and (pfcf_ratio > 0 and pfcf_ratio < 10):
-                        res["isAdded"] = True
-                        res["Reason"] = "P/P/TBV Ratio between 0.1 and 0.9 and P/aFCF Ratio of 10 or less."
-                    
-                    # Calculate EV and FC
-                    res["Enterprise Value"] = int(key_metrics[0]['enterpriseValue'])
-                    if res["Enterprise Value"] < 0 and (pfcf_ratio > 0 and pfcf_ratio < 10):
-                        res["isAdded"] = True
-                        res["Reason"] = "EV below 0 and P/aFCF Ratio of 10 or less."
-                    
-                    # Calculate EV Yield
-                    res["EV/aFCF Ratio"] = round(key_metrics[0]['evToFreeCashFlow'], 3)
-                    if res["EV/aFCF Ratio"] > 1 and res["EV/aFCF Ratio"] < 5:
-                        res["isAdded"] = True
-                        res["Reason"] = "EV/aFCF Ratio of between 1 and 5"
-
-                    # Calculate NCAV
-                    ncav = key_metrics[0]['netCurrentAssetValue']
-                    res["NCAV Ratio"] = round(mc/ncav, 3)
-                    if (ncav > 0 and ncav < 2.5) and (pfcf_ratio > 0 and pfcf_ratio < 10):
-                        res["isAdded"] = True
-                        res["Reason"] = "NCAV Ratio below 2.5 and P/aFCF Ratio of 10 or less."
-                    
-                    isBlacklist = False
-                    for bli in self.industry_blacklist:
-                        if bli in profile[0]['industry']:
-                            isBlacklist = True
-                            self.industry_blacklist_tickers.append(ticker)
-                    if not isBlacklist and (profile[0]["country"] != "CN" or profile[0]["country"] != "HK"):
-                        res["Name"] = profile[0]["companyName"]
-                        self.results[ticker] = res
-                except Exception as e:
-                    pass
-
     def __check_pafcf(self, debug:bool=False) -> None:
         bad_pe = [key for key, val in self.results.items() if not (val['P/aFCF Ratio'] > 0 and val['P/aFCF Ratio'] < 10)]
         for bad in bad_pe:
@@ -197,7 +137,7 @@ class AsyncScreener2:
             if rem > 0:
                 sleep(rem)
         self.__clean_results()
-        # self.__check_pafcf(True)
+        self.__check_pafcf(True)
         print(f"{len(self.results)} stocks remaining after screening")
     
     
