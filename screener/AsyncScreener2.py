@@ -46,7 +46,7 @@ class AsyncScreener2:
                 pass
     
     async def __get_profile(self, session: aiohttp.ClientSession, ticker: str) -> str:
-        async with session.get(f'https://financialmodelingprep.com/api/v3/profile/{ticker}?apikey={self.key}') as response:
+        async with session.get(f'https://financialmodelingprep.com/api/v3/profile/{ticker}?period=quarter&apikey={self.key}') as response:
             try:
                 return await response.json()
             except Exception as e:
@@ -60,8 +60,6 @@ class AsyncScreener2:
                 pass
     
     async def __handle_screener2(self, tickers: list[str], debug: bool = False) -> None:
-        # if debug:
-        #     print(f"{debug}/{len(self.tickers)} batches processed...")
         async with aiohttp.ClientSession() as session:
             tasks = [self.__get_data(session, ticker) for ticker in tickers]
             results = await asyncio.gather(*tasks)
@@ -81,7 +79,8 @@ class AsyncScreener2:
                     
                     five_year_fcf_average = sum([i['freeCashFlow'] for i in cashflow])/5
                     pfcfRatio = market_cap/five_year_fcf_average
-                    
+                    res["Market Cap"] = market_cap
+                    res["Average Cashflow"] = five_year_fcf_average
                     res["P/aFCF Ratio"] = round(pfcfRatio, 2)
                     if pfcfRatio > 0 and pfcfRatio < 10:
                         res["isAdded"] = True
