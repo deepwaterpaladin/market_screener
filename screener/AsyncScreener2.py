@@ -132,9 +132,9 @@ class AsyncScreener2:
             is_middle = i == len(tickers_arr)//2
             start = datetime.now()
             await self.__handle_screener2(tickers=tickers_arr[i:i+batch_size], debug=is_middle)
-            rem = 61-(datetime.now()-start).seconds
-            if rem > 0:
-                sleep(rem)
+            # rem = 61-(datetime.now()-start).seconds
+            # if rem > 0:
+            #     sleep(rem)
         self.__clean_results()
         self.__check_pafcf(True)
         print(f"{len(self.results)} stocks remaining after screening")
