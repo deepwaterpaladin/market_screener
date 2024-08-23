@@ -14,7 +14,7 @@ load_dotenv()
 #   - NCAV ratio [X]
 #   - P/aFCF ratio [X]
 #   - P/TBV ratio [ ]
-#   - EV/aFCF ratio [ ]
+#   - EV/aFCF ratio [X]
 
 class AsyncScreener2:
     def __init__(self, ticker_path: str) -> None:
@@ -23,13 +23,14 @@ class AsyncScreener2:
         self.industry_blacklist = ['Banks', 'Insurance']
         self.results = dict()
         self.industry_blacklist_tickers = list()
+        self.floats = None
     
     async def __get_data(self, session: aiohttp.ClientSession, ticker: str) -> tuple:
         profile = await self.__get_profile(session, ticker)
-        key_metrics = await self.__get_key_metrics(session, ticker)
+        key_metrics_ttm = await self.__get_key_metrics(session, ticker)
         balance_sheet = await self.__get_balance_sheet(session, ticker)
         cashflow = await self.__get_cashflow(session, ticker)
-        return profile, key_metrics, balance_sheet, cashflow
+        return profile, key_metrics_ttm, balance_sheet, cashflow
     
     async def __get_balance_sheet(self, session: aiohttp.ClientSession, ticker: str) -> str:
         async with session.get(f'https://financialmodelingprep.com/api/v3/balance-sheet-statement/{ticker}?period=quarter&limit=5&apikey={self.key}') as response:
@@ -39,7 +40,7 @@ class AsyncScreener2:
                 pass
     
     async def __get_key_metrics(self, session: aiohttp.ClientSession, ticker: str) -> str:
-        async with session.get(f'https://financialmodelingprep.com/api/v3/key-metrics/{ticker}?period=quarter&apikey={self.key}') as response:
+        async with session.get(f'https://financialmodelingprep.com/api/v3/key-metrics-ttm/{ticker}?period=quarter&apikey={self.key}') as response:
             try:
                 return await response.json()
             except Exception as e:
@@ -53,43 +54,72 @@ class AsyncScreener2:
                 pass
     
     async def __get_cashflow(self, session: aiohttp.ClientSession, ticker: str) -> str:
-        async with session.get(f'https://financialmodelingprep.com/api/v3/cash-flow-statement/{ticker}?period=annual&limit=5&apikey={self.key}') as response:
+        async with session.get(f'https://financialmodelingprep.com/api/v3/cash-flow-statement/{ticker}?period=annual&limit=4&apikey={self.key}') as response:
             try:
                 return await response.json()
             except Exception as e:
                 pass
     
+    async def __get_floats(self):
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"https://financialmodelingprep.com/api/v4/shares_float/all?apikey={self.key}") as response:
+                try:
+                    self.floats = await response.json()
+                except Exception as e:
+                    print(f"Error fetching floats: {e}")
+                    self.floats = None
+            
+    def __find_float_from_ticker(self, ticker) -> int:
+        for v in self.floats:
+            if v['symbol'] == ticker:
+                return v['outstandingShares']
+        
+        return 0 # if ticker can't be found, return 0
+    
+    
     async def __handle_screener2(self, tickers: list[str], debug: bool = False) -> None:
         async with aiohttp.ClientSession() as session:
             tasks = [self.__get_data(session, ticker) for ticker in tickers]
             results = await asyncio.gather(*tasks)
-            for ticker, (profile, key_metrics, balance_sheet, cashflow) in zip(tickers, results):
+            for ticker, (profile, key_metrics_ttm, balance_sheet, cashflow) in zip(tickers, results):
                 res = {"Name":str(), "isAdded": False}
                 try:
                     current_assets = int(balance_sheet[0]["totalCurrentAssets"])
                     total_liabilities = int(balance_sheet[0]["totalLiabilities"])
-                    market_cap = int(profile[0]["mktCap"])
+                    market_cap = int(key_metrics_ttm[0]["marketCapTTM"])
+                    # market_cap = int(profile[0]["mktCap"])
                     ncav = current_assets - total_liabilities
                     ratio = round(market_cap / ncav, 2)
-                    res["NCAV"] = ncav
+                    # res["NCAV"] = ncav
                     res["NCAV Ratio"] = ratio
                     if ratio > 0 and ratio < 2.5:
                         res["isAdded"] = True
                     
-                    
-                    five_year_fcf_average = sum([i['freeCashFlow'] for i in cashflow])/5
+                    free_float = self.__find_float_from_ticker(ticker)
+                    y_0_ttm = key_metrics_ttm[0]['freeCashFlowPerShareTTM'] * free_float
+                    rest = [i['freeCashFlow'] for i in cashflow]
+                    total = y_0_ttm + sum(rest)
+                    five_year_fcf_average = total / 5 
                     pfcfRatio = market_cap/five_year_fcf_average
-                    res["Market Cap"] = market_cap
-                    res["Average Cashflow"] = five_year_fcf_average
+                    # res["Market Cap"] = market_cap
+                    # res["Average Cashflow"] = round(five_year_fcf_average, 2)
                     res["P/aFCF Ratio"] = round(pfcfRatio, 2)
                     if pfcfRatio > 0 and pfcfRatio < 10:
                         res["isAdded"] = True
                     
-                    ev = key_metrics[0]["enterpriseValue"]
+                    ev = key_metrics_ttm[0]["enterpriseValueTTM"]
+                    # res["EV"] = ev
                     evFCF = ev/five_year_fcf_average
                     res["EV/aFCF"] = round(evFCF, 2)
                     if evFCF > 1 and evFCF < 5:
                         res["isAdded"] = True
+                    
+                    tbv = key_metrics_ttm[0]['tangibleAssetValueTTM']
+                    pTBV = market_cap/tbv
+                    res["P/TBV Ratio"] = round(pTBV, 2)
+                    if pTBV > 0 and pTBV < 1:
+                        res["isAdded"] = True
+                    
                     
                     isBlacklist = False
                     for bli in self.industry_blacklist:
@@ -126,15 +156,20 @@ class AsyncScreener2:
     
     
     async def run_async(self, batch_size:int=100) -> None:
+        print("Setting up the screener...")
         tickers_arr = [i for sublist in self.tickers.values() for i in sublist]
-        print(f"Screening {len(tickers_arr)} stocks...\nEstimated run time: ~{self.__calculate_runtime(len(tickers_arr)//batch_size, batch_size)} minute(s)...\n")
+        remaining = len(tickers_arr)
+        await self.__get_floats()
+        sleep(59)
+        print(f"Screening {remaining} stocks...\nEstimated run time: ~{self.__calculate_runtime(remaining//batch_size, batch_size)} minute(s)...\n")
         for i in range(0, len(tickers_arr), batch_size):
             is_middle = i == len(tickers_arr)//2
             start = datetime.now()
             await self.__handle_screener2(tickers=tickers_arr[i:i+batch_size], debug=is_middle)
-            # rem = 61-(datetime.now()-start).seconds
-            # if rem > 0:
-            #     sleep(rem)
+            remaining -= batch_size
+            rem = 61-(datetime.now()-start).seconds
+            if rem > 0 and remaining < batch_size:
+                sleep(rem)
         self.__clean_results()
         self.__check_pafcf(True)
         print(f"{len(self.results)} stocks remaining after screening")
