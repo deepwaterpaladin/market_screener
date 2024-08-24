@@ -90,7 +90,6 @@ class AsyncScreener2:
                     # market_cap = int(profile[0]["mktCap"])
                     ncav = current_assets - total_liabilities
                     ratio = round(market_cap / ncav, 2)
-                    # res["NCAV"] = ncav
                     res["NCAV Ratio"] = ratio
                     if ratio > 0 and ratio < 2.5:
                         res["isAdded"] = True
@@ -159,6 +158,7 @@ class AsyncScreener2:
         print("Setting up the screener...")
         tickers_arr = [i for sublist in self.tickers.values() for i in sublist]
         remaining = len(tickers_arr)
+        screened = 0
         await self.__get_floats()
         sleep(59)
         print(f"Screening {remaining} stocks...\nEstimated run time: ~{self.__calculate_runtime(remaining//batch_size, batch_size)} minute(s)...\n")
@@ -166,13 +166,15 @@ class AsyncScreener2:
             is_middle = i == len(tickers_arr)//2
             start = datetime.now()
             await self.__handle_screener2(tickers=tickers_arr[i:i+batch_size], debug=is_middle)
+            screened+=len(tickers_arr[i:i+batch_size])
             remaining -= batch_size
             rem = 61-(datetime.now()-start).seconds
             if rem > 0 and remaining < batch_size:
                 sleep(rem)
         self.__clean_results()
         self.__check_pafcf(True)
-        print(f"{len(self.results)} stocks remaining after screening")
+        print(f"{screened} stocks screened.")
+        print(f"{len(self.results)} stocks remaining after screening.")
     
     
     def create_xlsx(self, file_path:str) -> None:
