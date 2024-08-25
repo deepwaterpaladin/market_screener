@@ -12,6 +12,17 @@ load_dotenv()
 
 class AsyncScreener2:
     def __init__(self, ticker_path: str, sheet_path:str = "./service_account.json", sheet_name: str = "V2 Screener") -> None:
+        """
+        Initializes the AsyncScreener2 instance.
+
+        Parameters:
+        - `ticker_path` (str): Path to the file containing the tickers to be processed.
+        - `sheet_path` (str): Path to the Google Sheets service account credentials file.
+        - `sheet_name` (str): Name of the Google Sheet to use for storing results.
+
+        Returns:
+        - `None`
+        """
         self.tickers = process_tickers(ticker_path)
         self.key = os.environ['FMP_KEY']
         self.industry_blacklist = ['Banks', 'Insurance']
@@ -37,6 +48,16 @@ class AsyncScreener2:
         return drop
     
     async def __get_data(self, session: aiohttp.ClientSession, ticker: str) -> tuple:
+        """
+        Retrieves various financial data for a given ticker.
+
+        Parameters:
+        - `session` (aiohttp.ClientSession): The aiohttp session to use for making requests.
+        - `ticker` (str): The stock ticker symbol.
+
+        Returns:
+        - `tuple`: A tuple containing the profile, key metrics TTM, balance sheet, and cash flow data.
+        """
         profile = await self.__get_profile(session, ticker)
         key_metrics_ttm = await self.__get_key_metrics(session, ticker)
         balance_sheet = await self.__get_balance_sheet(session, ticker)
@@ -44,6 +65,16 @@ class AsyncScreener2:
         return profile, key_metrics_ttm, balance_sheet, cashflow
     
     async def __get_balance_sheet(self, session: aiohttp.ClientSession, ticker: str) -> str:
+        """
+        Retrieves the balance sheet for a given ticker.
+
+        Parameters:
+        - `session` (aiohttp.ClientSession): The aiohttp session to use for making requests.
+        - `ticker` (str): The stock ticker symbol.
+
+        Returns:
+        - `str`: The balance sheet data in JSON format.
+        """
         async with session.get(f'https://financialmodelingprep.com/api/v3/balance-sheet-statement/{ticker}?period=quarter&limit=5&apikey={self.key}') as response:
             try:
                 return await response.json()
@@ -51,6 +82,16 @@ class AsyncScreener2:
                 pass
     
     async def __get_key_metrics(self, session: aiohttp.ClientSession, ticker: str) -> str:
+        """
+        Retrieves the key metrics TTM (Trailing Twelve Months) for a given ticker.
+
+        Parameters:
+        - `session` (aiohttp.ClientSession): The aiohttp session to use for making requests.
+        - `ticker` (str): The stock ticker symbol.
+
+        Returns:
+        - `str`: The key metrics TTM data in JSON format.
+        """
         async with session.get(f'https://financialmodelingprep.com/api/v3/key-metrics-ttm/{ticker}?period=quarter&apikey={self.key}') as response:
             try:
                 return await response.json()
@@ -58,6 +99,16 @@ class AsyncScreener2:
                 pass
     
     async def __get_profile(self, session: aiohttp.ClientSession, ticker: str) -> str:
+        """
+        Retrieves the company profile for a given ticker.
+
+        Parameters:
+        - `session` (aiohttp.ClientSession): The aiohttp session to use for making requests.
+        - `ticker` (str): The stock ticker symbol.
+
+        Returns:
+        - `str`: The company profile data in JSON format.
+        """
         async with session.get(f'https://financialmodelingprep.com/api/v3/profile/{ticker}?period=quarter&apikey={self.key}') as response:
             try:
                 return await response.json()
@@ -65,13 +116,29 @@ class AsyncScreener2:
                 pass
     
     async def __get_cashflow(self, session: aiohttp.ClientSession, ticker: str) -> str:
+        """
+        Retrieves the cash flow statement for a given ticker.
+
+        Parameters:
+        - `session` (aiohttp.ClientSession): The aiohttp session to use for making requests.
+        - `ticker` (str): The stock ticker symbol.
+
+        Returns:
+        - `str`: The cash flow data in JSON format.
+        """
         async with session.get(f'https://financialmodelingprep.com/api/v3/cash-flow-statement/{ticker}?period=annual&limit=4&apikey={self.key}') as response:
             try:
                 return await response.json()
             except Exception as e:
                 pass
     
-    async def __get_floats(self):
+    async def __get_floats(self) -> None:
+        """
+        Retrieves float data for all stocks.
+
+        Returns:
+        - `None`
+        """
         async with aiohttp.ClientSession() as session:
             async with session.get(f"https://financialmodelingprep.com/api/v4/shares_float/all?apikey={self.key}") as response:
                 try:
@@ -81,6 +148,15 @@ class AsyncScreener2:
                     self.floats = None
             
     def __find_float_from_ticker(self, ticker) -> int:
+        """
+        Finds the float (outstanding shares) for a given ticker.
+
+        Parameters:
+        - `ticker` (str): The stock ticker symbol.
+
+        Returns:
+        - `int`: The number of outstanding shares, or 0 if not found.
+        """
         for v in self.floats:
             if v['symbol'] == ticker:
                 return v['outstandingShares']
@@ -89,6 +165,16 @@ class AsyncScreener2:
     
     
     async def __handle_screener2(self, tickers: list[str], debug: bool = False) -> None:
+        """
+        Handles the screening process for a batch of tickers.
+
+        Parameters:
+        - `tickers` (list[str]): A list of stock ticker symbols to screen.
+        - `debug` (bool): If True, prints debug information. Default is False.
+
+        Returns:
+        - `None`
+        """
         async with aiohttp.ClientSession() as session:
             tasks = [self.__get_data(session, ticker) for ticker in tickers]
             results = await asyncio.gather(*tasks)
@@ -141,6 +227,15 @@ class AsyncScreener2:
 
     
     def __check_pafcf(self, debug:bool=False) -> None:
+        """
+        Removes stocks from the results dictionary where the P/aFCF (Price-to-average-Free-Cash-Flow) ratio exceeds 10.
+
+        Parameters:
+        - `debug` (bool): If True, prints the number of stocks removed based on the P/aFCF ratio. Default is False.
+
+        Returns:
+        - `None`
+        """
         bad_pe = [key for key, val in self.results.items() if val['P/aFCF Ratio'] > 10]
         for bad in bad_pe:
             self.results.pop(bad, None)
@@ -149,6 +244,15 @@ class AsyncScreener2:
 
 
     def __clean_results(self, debug:bool=False) -> None:
+        """
+        Cleans the results dictionary by removing stocks that were not added based on screening criteria or that belong to blacklisted industries.
+
+        Parameters:
+        - `debug` (bool): If True, prints the number of stocks removed during the cleaning process. Default is False.
+
+        Returns:
+        - `None`
+        """
         to_remove = [key for key, val in self.results.items() if not val["isAdded"]]
         for i in self.industry_blacklist_tickers:
             to_remove.append(i)
@@ -157,6 +261,16 @@ class AsyncScreener2:
 
     
     def __calculate_runtime(self, number_of_batches:int, batch_size:int) -> int:
+        """
+        Estimates the runtime for the screening process based on the number of batches and batch size.
+
+        Parameters:
+        - `number_of_batches` (int): The number of batches to process.
+        - `batch_size` (int): The size of each batch.
+
+        Returns:
+        - `int`: The estimated runtime in minutes.
+        """
         est_seconds = number_of_batches * 61
         minutes, seconds = divmod(est_seconds, 60)
 
@@ -164,6 +278,15 @@ class AsyncScreener2:
     
     
     async def run_async(self, batch_size:int=100) -> None:
+        """
+        Runs the asynchronous screening process in batches.
+
+        Parameters:
+        - `batch_size` (int): The number of stocks to process in each batch. Default is 100.
+
+        Returns:
+        - `None`
+        """
         print("Setting up the screener...")
         await self.__get_floats()
         tickers_arr = [i for sublist in self.tickers.values() for i in sublist]
