@@ -150,6 +150,8 @@ class AsyncScreener2:
 
     def __clean_results(self, debug:bool=False) -> None:
         to_remove = [key for key, val in self.results.items() if not val["isAdded"]]
+        for i in self.industry_blacklist_tickers:
+            to_remove.append(i)
         for tr in to_remove:
             self.results.pop(tr, None)
 

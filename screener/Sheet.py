@@ -61,10 +61,11 @@ class Sheet:
         for k, v in data.items():
             payload = [k, str(v['Name']), v["NCAV Ratio"], v["EV/aFCF"], v["P/TBV Ratio"], v["EV"], v["P/aFCF Ratio"],str(v['Country'])]
             sheet.append_row(values= payload, table_range=f'A{itr}:G{itr}')
-            itr+=1
-            if itr % 60 == 0:
-                print("Waiting 120 seconds to avoid exceeding API limit.")
-                sleep(120)
+            itr+= 1
+            sleep(2)
+            # if itr % 30 == 0:
+            #     print("Waiting 60 seconds to avoid exceeding API limit.")
+            #     sleep(60)
 
         print(f"{itr-2} companies added to spreadsheet.")
     
