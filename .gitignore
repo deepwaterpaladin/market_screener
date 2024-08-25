@@ -1,4 +1,5 @@
 *.env
+/venv
 .vscode/
 /output/*.xlsx
 /screener/__pycache__
