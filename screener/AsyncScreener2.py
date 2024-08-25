@@ -226,7 +226,7 @@ class AsyncScreener2:
                     pass
 
     
-    def __check_pafcf(self, debug:bool=False) -> None:
+    def check_pafcf(self, debug:bool=False) -> None:
         """
         Removes stocks from the results dictionary where the P/aFCF (Price-to-average-Free-Cash-Flow) ratio exceeds 10.
 
@@ -243,7 +243,7 @@ class AsyncScreener2:
             print(f"{len(bad_pe)} removed for P/aFCF Ratio")
 
 
-    def __clean_results(self, debug:bool=False) -> None:
+    def clean_results(self, debug:bool=False) -> None:
         """
         Cleans the results dictionary by removing stocks that were not added based on screening criteria or that belong to blacklisted industries.
 
@@ -311,8 +311,8 @@ class AsyncScreener2:
             else:
                 print(f"Batch {b}/{tot} complete.")
         
-        self.__clean_results()
-        self.__check_pafcf(True)
+        self.clean_results()
+        self.check_pafcf(True)
         print(f"{screened} stocks screened.")
         print(f"{len(self.results)} stocks remaining after screening.")
     

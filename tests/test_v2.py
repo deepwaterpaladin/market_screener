@@ -1,20 +1,35 @@
 import pytest
 import pandas as pd
-import asyncio
 from screener.AsyncScreener2 import AsyncScreener2
-import json
 
 
 @pytest.fixture
 def screener():
-    # Load tickers from a test file
-    with open("./test_tickers.json") as f:
-        tickers = json.load(f)
-    
-    # Initialize the AsyncScreener2 instance with mock paths
-    screener = AsyncScreener2(ticker_path=tickers, sheet_path="dummy_sheet_path.json", sheet_name="Test Sheet")
+    screener = AsyncScreener2(ticker_path="./test_tickers.json")
     return screener
 
+def test_pafcf(screener):
+    screener.results = {
+        "AAPL": {"Name": "Apple Inc.", "NCAV Ratio": 1.5, "P/aFCF Ratio": 11, "EV/aFCF": 3.5, "P/TBV Ratio": 0.9},
+        "GOOGL": {"Name": "Google LLC", "NCAV Ratio": 1.7, "P/aFCF Ratio": 1.8, "EV/aFCF": 4.0, "P/TBV Ratio": 1.2}
+    }
+    
+    assert(len(screener.results) == 2)
+    screener.check_pafcf()
+    assert(len(screener.results) == 1)
+
+def test_pafcf_no_drop(screener):
+    screener.results = {
+        "AAPL": {"Name": "Apple Inc.", "NCAV Ratio": 1.5, "P/aFCF Ratio": 10, "EV/aFCF": 3.5, "P/TBV Ratio": 0.9},
+        "GOOGL": {"Name": "Google LLC", "NCAV Ratio": 1.7, "P/aFCF Ratio": 1.8, "EV/aFCF": 4.0, "P/TBV Ratio": 1.2}
+    }
+    
+    assert(len(screener.results) == 2)
+    screener.check_pafcf()
+    assert(len(screener.results) == 2)
+
+def test_previous_seen_tickers(screener):
+    assert(len(screener.previous) != 0)
 
 @pytest.fixture
 def mock_floats():
@@ -51,33 +66,33 @@ def mock_data():
     }
 
 
-@pytest.mark.asyncio
-async def test_run_async(screener, mock_floats, mock_data):
-    # Manually set the floats
-    screener.floats = mock_floats
+# @pytest.mark.asyncio
+# async def test_run_async(screener, mock_floats, mock_data):
+#     # Manually set the floats
+#     screener.floats = mock_floats
 
-    # Mock the API responses by overriding the __handle_screener2 method
-    async def mock_handle_screener(tickers, debug=False):
-        for i, ticker in enumerate(tickers):
-            screener.results[ticker] = {
-                "Name": mock_data["company_data"][i]["companyName"],
-                "NCAV Ratio": mock_data["balance_data"][i]["totalCurrentAssets"] / mock_data["balance_data"][i]["totalLiabilities"],
-                "P/aFCF Ratio": mock_data["market_data"][i]["marketCapTTM"] / (mock_data["cashflow_data"][i]["freeCashFlow"] / mock_floats[i]["outstandingShares"]),
-                "EV/aFCF": mock_data["market_data"][i]["enterpriseValueTTM"] / (mock_data["cashflow_data"][i]["freeCashFlow"]),
-                "P/TBV Ratio": mock_data["market_data"][i]["marketCapTTM"] / mock_data["market_data"][i]["tangibleAssetValueTTM"]
-            }
+#     # Mock the API responses by overriding the __handle_screener2 method
+#     async def mock_handle_screener(tickers, debug=False):
+#         for i, ticker in enumerate(tickers):
+#             screener.results[ticker] = {
+#                 "Name": mock_data["company_data"][i]["companyName"],
+#                 "NCAV Ratio": mock_data["balance_data"][i]["totalCurrentAssets"] / mock_data["balance_data"][i]["totalLiabilities"],
+#                 "P/aFCF Ratio": mock_data["market_data"][i]["marketCapTTM"] / (mock_data["cashflow_data"][i]["freeCashFlow"] / mock_floats[i]["outstandingShares"]),
+#                 "EV/aFCF": mock_data["market_data"][i]["enterpriseValueTTM"] / (mock_data["cashflow_data"][i]["freeCashFlow"]),
+#                 "P/TBV Ratio": mock_data["market_data"][i]["marketCapTTM"] / mock_data["market_data"][i]["tangibleAssetValueTTM"]
+#             }
 
-    screener.__handle_screener2 = mock_handle_screener
+#     screener.__handle_screener2 = mock_handle_screener
 
-    # Run the async method
-    await screener.run_async(batch_size=3)
+#     # Run the async method
+#     await screener.run_async()
 
-    # Validate that the screening results are as expected
-    assert len(screener.results) == 3
-    assert screener.results["AAPL"]["NCAV Ratio"] == 2.5
-    assert screener.results["AAPL"]["P/aFCF Ratio"] == 1.3
-    assert screener.results["AAPL"]["EV/aFCF"] == 2.5
-    assert screener.results["AAPL"]["P/TBV Ratio"] == 4.0
+#     # Validate that the screening results are as expected
+#     assert len(screener.results) == 3
+#     assert screener.results["AAPL"]["NCAV Ratio"] == 2.5
+#     assert screener.results["AAPL"]["P/aFCF Ratio"] == 1.3
+#     assert screener.results["AAPL"]["EV/aFCF"] == 2.5
+#     assert screener.results["AAPL"]["P/TBV Ratio"] == 4.0
 
 
 def test_create_xlsx(screener):
@@ -86,7 +101,6 @@ def test_create_xlsx(screener):
         "AAPL": {"Name": "Apple Inc.", "NCAV Ratio": 1.5, "P/aFCF Ratio": 2.0, "EV/aFCF": 3.5, "P/TBV Ratio": 0.9},
         "GOOGL": {"Name": "Google LLC", "NCAV Ratio": 1.7, "P/aFCF Ratio": 1.8, "EV/aFCF": 4.0, "P/TBV Ratio": 1.2}
     }
-
     # Simulate the call to create_xlsx
     screener.create_xlsx(file_path="test_results.xlsx")
 

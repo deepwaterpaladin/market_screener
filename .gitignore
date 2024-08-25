@@ -5,4 +5,5 @@
 /screener/__pycache__
 /screener/*.json
 /screener/*.ipynb
+*/service_account.json
 .DS_Store
