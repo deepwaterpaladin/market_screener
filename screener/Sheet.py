@@ -1,5 +1,6 @@
 from datetime import datetime
 import gspread
+from time import sleep
 import re
 
 class Sheet:
@@ -40,6 +41,10 @@ class Sheet:
         sheet = self.__get_worksheet_names()[-1]
         sheet.append_row(values= ["Ticker", "Company Name", "NCAV Ratio", "Payback Rating", "Average Yield", "HQ Country", "Exchange Country"],table_range='A1:G1')
 
+    def __add_header_v2(self) -> None:
+        sheet = self.__get_worksheet_names()[-1]
+        sheet.append_row(values= ["Ticker", "Company Name", "NCAV Ratio",  "EV/aFCF", "P/TBV Ratio", "Enterprise Value", "P/aFCF Ratio", "Country"],table_range='A1:G1')
+    
     def add_row_data(self, data: dict) -> None:
         sheet = self.__get_worksheet_names()[-1]
         itr = 2
@@ -49,6 +54,19 @@ class Sheet:
             itr+=1
 
         print("data added to spreadsheet.")
+    
+    def add_row_data_v2(self, data: dict) -> None:
+        sheet = self.__get_worksheet_names()[-1]
+        itr = 2
+        for k, v in data.items():
+            payload = [k, str(v['Name']), v["NCAV Ratio"], v["EV/aFCF"], v["P/TBV Ratio"], v["EV"], v["P/aFCF Ratio"],str(v['Country'])]
+            sheet.append_row(values= payload, table_range=f'A{itr}:G{itr}')
+            itr+=1
+            if itr % 60 == 0:
+                print("Waiting 120 seconds to avoid exceeding API limit.")
+                sleep(120)
+
+        print(f"{itr-2} companies added to spreadsheet.")
     
     def get_all_worksheets(self) -> list[gspread.Worksheet]:
         try:
@@ -61,6 +79,16 @@ class Sheet:
             name = f"{self.today.day}-{self.month_dict[self.today.month]}-{self.today.year}"
             self.file.add_worksheet(title = name, rows = 0, cols = 0)
             self.__add_header()
+            print(f"Sheet {name} added.")
+            self._was_sheet_added_today = True
+        except:
+            print("Unable to add new tab. Tab already exists.")
+    
+    def create_new_tab_v2(self) -> None:
+        try:
+            name = f"{self.today.day}-{self.month_dict[self.today.month]}-{self.today.year}"
+            self.file.add_worksheet(title = name, rows = 0, cols = 0)
+            self.__add_header_v2()
             print(f"Sheet {name} added.")
             self._was_sheet_added_today = True
         except:
@@ -91,6 +119,6 @@ class Sheet:
             sheets = all_sheets
         
         for sheet in sheets:
-            seen.append(sheet.get_values("A2:A300"))
+            seen.append(sheet.get_values("A2:A1000"))
         
         return [i[0] for sub in seen for i in sub if i]
