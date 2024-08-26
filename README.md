@@ -18,7 +18,7 @@
     - Allow task to be run on demand -- enabled
     - Run task as soon as possible after a scheduled start is missed -- enabled
     - If the running task does not end when requested, force it to stop
-6. Once the above steps have been completed, the screener will run as configured. 
+6. Once the above steps have been completed, the screener will run as configured.
 
 ## Data
 
