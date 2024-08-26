@@ -69,10 +69,9 @@ def test_create_xlsx(screener):
         "AAPL": {"Name": "Apple Inc.", "NCAV Ratio": 1.5, "P/aFCF Ratio": 2.0, "EV/aFCF": 3.5, "P/TBV Ratio": 0.9},
         "GOOGL": {"Name": "Google LLC", "NCAV Ratio": 1.7, "P/aFCF Ratio": 1.8, "EV/aFCF": 4.0, "P/TBV Ratio": 1.2}
     }
-    # Simulate the call to create_xlsx
+    
     screener.create_xlsx(file_path="test_results.xlsx")
 
-    # Read the created file to ensure data was correctly written
     df = pd.read_excel("test_results.xlsx")
     assert "Name" in df.columns
     assert len(df) == 2
