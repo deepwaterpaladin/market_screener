@@ -18,7 +18,6 @@
     - Git is a version control software that allows you to track changes.
 1. Follow the steps 1-3 under `Setup` in `README.md`.
 
-
 ## Check for Updates
 
 1. Open VSCode
