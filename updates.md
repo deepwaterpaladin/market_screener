@@ -31,4 +31,3 @@
 1. Open the integrated term ```CTRL + ` (backtick)``` (on widows) ```CMD + ` (backtick)``` (on Mac).
 1. run `git pull origin {name_of_branch}` to pull updates from remote repository.
     - `name_of_branch` default is main.
- 
