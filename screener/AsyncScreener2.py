@@ -215,6 +215,10 @@ class AsyncScreener2:
                         res["isAdded"] = True
                         res["P/TBV Ratio"] = round(pTBV, 1)
                     
+                    net_debt = balance_sheet[0]["netDebt"]
+                    if net_debt > 0:
+                        res["isAdded"] = False
+                    
                     for bli in self.industry_blacklist:
                         if bli in profile[0]['industry']:
                             self.industry_blacklist_tickers.append(ticker)
