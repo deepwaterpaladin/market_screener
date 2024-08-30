@@ -201,6 +201,13 @@ class AsyncScreener2:
                     if pfcfRatio > 0 and pfcfRatio < 10:
                         res["isAdded"] = True
                     
+                    negCashflow = 0
+                    for i in rest:
+                        if i > 0:
+                            negCashflow += 1
+                    if negCashflow >= 3:
+                        pass
+
                     ev = key_metrics_ttm[0]["enterpriseValueTTM"]
                     res["EV"] = round(ev, 1)
                     evFCF = ev/five_year_fcf_average
