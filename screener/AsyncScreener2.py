@@ -203,10 +203,10 @@ class AsyncScreener2:
                     
                     negCashflow = 0
                     for i in rest:
-                        if i > 0:
+                        if i < 0:
                             negCashflow += 1
-                    if negCashflow >= 3:
-                        pass
+                    if negCashflow > 2:
+                        continue
 
                     ev = key_metrics_ttm[0]["enterpriseValueTTM"]
                     res["EV"] = round(ev, 1)
