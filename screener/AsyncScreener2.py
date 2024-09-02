@@ -354,6 +354,5 @@ class AsyncScreener2:
             print(f"{starting_size - cleaned} tickers removed (previously present in google sheet).")
         
         self.sheet_client.add_row_data_v2(self.results)
-        
         if debug:
             print("Google Sheet updated.")
