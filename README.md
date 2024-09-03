@@ -3,7 +3,7 @@
 ## Setup
 
 1. run startup file `py startup.py`.
-    - this should install required dependencies & create an `.env` file.
+    - this should install required dependencies & create an `.env` file
 2. within the `.env` file, replace ` # *** YOUR API KEY *** ` with your FMP API key wrapped in quotes. (i.e., `"abc123"`).
 3. add your `service_account.json` file from your Google developer portal.
 4. open Task Scheduler on your PC:
