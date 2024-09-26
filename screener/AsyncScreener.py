@@ -156,6 +156,9 @@ class AsyncScreener:
         async with aiohttp.ClientSession() as session:
             async with session.get(f'https://financialmodelingprep.com/api/v4/shares_float/all?apikey={self.key}') as response:
                 return await response.json()
+            
+    def __calculate_upside(self):
+        pass
 
     async def __handle_tickers(self, tickers: list[str], debug: bool = False) -> None:
         if debug:
