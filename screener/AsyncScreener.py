@@ -152,6 +152,13 @@ class AsyncScreener:
             except Exception as e:
                 pass
     
+    async def __get_historical(self, session: aiohttp.ClientSession, ticker: str) -> str:
+        async with session.get(f'https://financialmodelingprep.com/api/v3/historical-price-full/{ticker}?apikey={self.key}') as response:
+            try:
+                return await response.json()
+            except Exception as e:
+                pass
+    
     async def get_all_shares_float(self) -> str:
         async with aiohttp.ClientSession() as session:
             async with session.get(f'https://financialmodelingprep.com/api/v4/shares_float/all?apikey={self.key}') as response:
@@ -159,6 +166,15 @@ class AsyncScreener:
             
     def __calculate_upside(self):
         pass
+
+    def __calculate_5Y_price(self, historical:dict):
+        highs = [i['high'] for i in historical['historical']]
+        current = historical['historical'][0]['high']
+        if max(highs) == current:
+            return 100
+        result = ((max(highs) - current) / current) * 100
+        
+        return round(result, 2)
 
     async def __handle_tickers(self, tickers: list[str], debug: bool = False) -> None:
         if debug:
