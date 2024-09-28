@@ -258,7 +258,9 @@ class AsyncScreener:
             is_middle = i == len(ticker_arr)//2
             start = datetime.now()
             await self.__handle_tickers(tickers=ticker_arr[i:i+batch_size], debug=is_middle)
-            sleep(61-(datetime.now()-start).seconds)
+            rem = 61-(datetime.now()-start).seconds
+            if rem > 0:
+                sleep(rem)
 
         self.__calculate_packback_rating()
         print(f"{len(self.results)} stocks remaining after screening")
