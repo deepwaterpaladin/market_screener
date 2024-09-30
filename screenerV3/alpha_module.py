@@ -176,7 +176,7 @@ class AlphaModule:
                     stocks_added += 1
 
             # get all cashflow
-            print(f"Phase 1 complete.\n{len(issues)} stocks removed")
+            print(f"Phase I complete.\n{len(issues)} stocks removed")
             issues = []
             for k, v in stk_res.items():
                 self.__check_reqs(requests_sent)
@@ -198,6 +198,7 @@ class AlphaModule:
                         continue
                     v['5Y average yield > 10%'] = average_yield
                     v['5Y average'] = five_year_fcf_average
+                    v["Cash & Equivalents"]= cf[0]["cashAtEndOfPeriod"]
 
                 except Exception as ex:
                     issues.append(k)
@@ -208,7 +209,7 @@ class AlphaModule:
             
             
             # get all balencesheets
-            print(f"Phase 2 complete.\n{len(issues)} stocks removed")
+            print(f"Phase II complete.\n{len(issues)} stocks removed")
             issues = []
             for k, v in stk_res.items():
                 self.__check_reqs(requests_sent)
@@ -233,6 +234,26 @@ class AlphaModule:
             
             for i in issues:
                 stk_res.pop(i)
-            print(f"Phase 3 complete.\n{len(issues)} stocks removed")
+            print(f"Phase III complete.\n{len(issues)} stocks removed")
+
+            issues = []
+            for k, v in stk_res.items():
+                hist = await self.__get_historical(session, k)
+                requests_sent += 1 
+                self.__check_reqs(requests_sent)
+                try:
+                    five_year_max = round(max([i['close'] for i in hist['historical']]), 2)
+                    five_year_price_metric = ((five_year_max - hist['historical'][0]['close'])/hist['historical'][0]['close']) * 100
+                    v['5Y Price Metric'] = round(five_year_price_metric,2)
+                    v['Current Price'] = round(hist['historical'][0]['close'], 2)
+                    v['5Y Max'] = five_year_max
+                except:
+                    issues.append(k)
+                    continue
+            
+            for i in issues:
+                stk_res.pop(i)
+            print(f"Phase IV complete.\n{len(issues)} stocks removed")
+
         print(f"{requests_sent} requests sent")
         return stk_res
