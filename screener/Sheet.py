@@ -118,8 +118,12 @@ class Sheet:
             sheets = all_sheets[-52:]
         else:
             sheets = all_sheets
-        
-        for sheet in sheets:
-            seen.append(sheet.get_values("A2:A1000"))
+        try:
+            for sheet in sheets:
+                seen.append(sheet.get_values("A2:A1000"))
+        except:
+            print("Google Sheets API limit exceeded. Waiting 30 seconds before trying again.")
+            sleep(31)
+            self.get_all_previously_seen_tickers()
         
         return [i[0] for sub in seen for i in sub if i]

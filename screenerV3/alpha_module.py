@@ -54,6 +54,13 @@ class AlphaModule:
         
         print(f"{removed} tickers removed for being screened within the passed year.")
         return ret
+    
+    def __get_ticker_count(self) -> int:
+        num = 0
+        for k, v in self.tickers.items():
+            num += len(v)
+        return num
+
 
     async def __get_profile(self, session: aiohttp.ClientSession, ticker: str) -> str:
         async with session.get(f'https://financialmodelingprep.com/api/v3/profile/{ticker}?apikey={self.key}') as response:
@@ -65,24 +72,51 @@ class AlphaModule:
     async def __get_historical(self, session: aiohttp.ClientSession, ticker: str) -> str:
         async with session.get(f'https://financialmodelingprep.com/api/v3/historical-price-full/{ticker}?apikey={self.key}') as response:
             try:
-                return await response.json()
+                return await response.json()# if response.status == 200 else print("Hit API limit. Waiting 55 seconds.") and sleep(55)
             except Exception as e:
                 pass
     
     async def __get_balance_sheet(self, session: aiohttp.ClientSession, ticker: str) -> str:
         async with session.get(f'https://financialmodelingprep.com/api/v3/balance-sheet-statement/{ticker}?period=quarter&limit=5&apikey={self.key}') as response:
             try:
-                return await response.json()
+                return await response.json()# if response.status == 200 else print("Hit API limit. Waiting 55 seconds.") and sleep(55)
             except Exception as e:
                 pass
     
     async def __get_cashflow(self, session: aiohttp.ClientSession, ticker: str) -> str:
         async with session.get(f'https://financialmodelingprep.com/api/v3/cash-flow-statement/{ticker}?period=annual&limit=5&apikey={self.key}') as response:
             try:
-                return await response.json()
+                return await response.json()# if response.status == 200 else print("Hit API limit. Waiting 55 seconds.") and sleep(55)
             except Exception as e:
                 pass
 
+    def __calculate_packback_rating(self, debug: bool = False) -> None:
+        """
+        Calculates the payback rating for the screening results.
+
+        Returns:
+        - `None`
+        """
+        negative_payback_rating = []
+        for k, v in self.results.items():
+            for k, v in self.results.items():
+                cash_equivalents = v.get("Cash & Equivalents", 0)
+                earnings_average = v.get("5Y average", 0)
+                market_cap = v.get("Market Capitalization", 0)
+                if cash_equivalents > market_cap:
+                    v["Payback Rating"] = 0.5
+                elif market_cap <= (cash_equivalents + earnings_average):
+                    v["Payback Rating"] = 1
+                elif market_cap <= (cash_equivalents + (earnings_average * 2)):
+                    v["Payback Rating"] = 2
+                elif market_cap <= (cash_equivalents + (earnings_average * 3)):
+                    v["Payback Rating"] = 3
+                else:
+                    negative_payback_rating.append(k)
+
+            for i in negative_payback_rating:
+                self.results.pop(i)
+            print(f"{len(negative_payback_rating)} tickers removed for negative payback rating.") if debug else None
 
     def __format_request_str(self, limit:int=300) -> str:
         """
@@ -108,27 +142,22 @@ class AlphaModule:
     
     def __check_reqs(self, requests_sent:int) -> None:
         if requests_sent % 299 == 0:
-            print("Sleeping for 55 seconds to avoid hitting API limit")
+            print("Sleeping for 55 seconds to avoid hitting API limit.")
             sleep(55)
     
     def __sort_results(self) -> None:
         # sort first on NCAV (lowest -> highest)
         # second on upside (highest -> lowest)
-        
         self.results = dict(sorted(self.results.items(), key=lambda x: (x[1]["NCAV Ratio"], x[1]["FV Upside Metric"])))
     
 
     async def run_async(self, debug:bool=False) -> dict:
-        # get all profiles
-        # screen out any stocks without divs or buybacks
-        # screen out any Chinese, Hong Kong, or Macau based companies/stocks.
-        # screen out any stocks with market cap <= 0
-        # create new list of stocks to performe remaining screening on
-
         stk_res = {}
         blacklist = ["CN", "HK"]
         issues = []
         requests_sent = 0
+        starting_stocks = self.__get_ticker_count()
+        print(f"Screening {starting_stocks} stocks...")
         async with aiohttp.ClientSession() as session: 
             for string in self.profile_fstr_arr:
                 res = await self.__get_profile(session, string)
@@ -142,8 +171,12 @@ class AlphaModule:
                     if profile['country'] in blacklist:
                         issues.append(profile['symbol'])
                         continue
+                    
                     try:
-                        # Attempt to get the dividend value
+                        if profile['industry'][:5] == "Banks" or profile['industry'][:9] == "Insurance" or profile["industry"][:9] == "Financial" or profile['industry'][:10] == "Investment" or profile['industry'] == "Asset Management":
+                            issues.append(profile['symbol'])
+                            continue
+    
                         div = float(profile.get("lastDiv", 0))
                     except (IndexError, ValueError, TypeError):
                         issues.append(profile['symbol'])
@@ -159,7 +192,8 @@ class AlphaModule:
                     }
 
             # get all cashflow
-            print(f"Phase I complete.\n{len(issues)} stocks removed") if debug else None
+            starting_stocks = starting_stocks-len(issues)
+            print(f"Phase I complete.\n{len(issues)} stocks removed.\n{starting_stocks} remaining.") if debug else None
             issues = []
             for k, v in stk_res.items():
                 self.__check_reqs(requests_sent)
@@ -181,6 +215,9 @@ class AlphaModule:
                     v['5Y average yield > 10%'] = average_yield
                     v['5Y average'] = five_year_fcf_average
                     v["Cash & Equivalents"]= cf[0]["cashAtEndOfPeriod"]
+                    if v['Has Dividends or Buybacks'] == 0:
+                        issues.append(k)
+                        continue
 
                 except Exception as ex:
                     issues.append(k)
@@ -191,7 +228,8 @@ class AlphaModule:
             
             
             # get all balencesheets
-            print(f"Phase II complete.\n{len(issues)} stocks removed") if debug else None
+            starting_stocks = starting_stocks-len(issues)
+            print(f"Phase II complete.\n{len(issues)} stocks removed.\n{starting_stocks} remaining.") if debug else None
             issues = []
             for k, v in stk_res.items():
                 self.__check_reqs(requests_sent)
@@ -216,13 +254,15 @@ class AlphaModule:
             
             for i in issues:
                 stk_res.pop(i)
-            print(f"Phase III complete.\n{len(issues)} stocks removed") if debug else None
+            
+            starting_stocks = starting_stocks-len(issues)
+            print(f"Phase III complete.\n{len(issues)} stocks removed.\n{starting_stocks} remaining.") if debug else None
 
             issues = []
             for k, v in stk_res.items():
+                self.__check_reqs(requests_sent)
                 hist = await self.__get_historical(session, k)
                 requests_sent += 1 
-                self.__check_reqs(requests_sent)
                 try:
                     five_year_max = round(max([i['close'] for i in hist['historical']]), 2)
                     five_year_price_metric = ((five_year_max - hist['historical'][0]['close'])/hist['historical'][0]['close']) * 100
@@ -235,7 +275,8 @@ class AlphaModule:
             
             for i in issues:
                 stk_res.pop(i)
-            print(f"Phase IV complete.\n{len(issues)} stocks removed") if debug else None
+            starting_stocks = starting_stocks-len(issues)
+            print(f"Phase IV complete.\n{len(issues)} stocks removed.\n{starting_stocks} remaining.") if debug else None
 
             issues = []
             for k, v in stk_res.items():
@@ -248,10 +289,13 @@ class AlphaModule:
             
             for i in issues:
                 stk_res.pop(i)
-            print(f"Phase V complete.\n{len(issues)} stocks removed") if debug else None
+            
+            starting_stocks = starting_stocks-len(issues)
+            print(f"Phase V complete.\n{len(issues)} stocks removed.\n{starting_stocks} remaining.") if debug else None
 
         print(f"{requests_sent} requests sent") if debug else None
         self.results = stk_res
+        self.__calculate_packback_rating(debug)
         self.__sort_results()
         return self.results
     
