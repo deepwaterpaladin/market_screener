@@ -8,30 +8,29 @@ import json
 
 load_dotenv()
 
+
 class AlphaModule:
     def __init__(self, ticker_path: str, sheet_path:str = "./service_account.json", sheet_name: str = "Screener") -> None:
+        self.sheet_client = Sheet(sheet_path= sheet_path, file_name=sheet_name)
         self.tickers = self.__process_tickers(ticker_path)
         self.profile_fstr_arr = self.__format_request_str(1000)
         self.hist_fstr_arr = self.__format_request_str(300)
         self.key = os.environ['FMP_KEY']
-        self.sheet_client = Sheet(sheet_path= sheet_path, file_name=sheet_name)
         self.results = {}
-
-
+    
     def __read_json_file(self, file_path) -> dict[str:list]:
-        """
-        Reads a JSON file and returns its content as a dictionary.
+                """
+                Reads a JSON file and returns its content as a dictionary.
 
-        Parameters:
-        - `file_path` (str): The path to the JSON file.
+                Parameters:
+                - `file_path` (str): The path to the JSON file.
 
-        Returns:
-        - `dict`: A dictionary containing the content of the JSON file.
-        """
-        with open(file_path, 'r') as file:
-            data = json.load(file)
-        return data
-
+                Returns:
+                - `dict`: A dictionary containing the content of the JSON file.
+                """
+                with open(file_path, 'r') as file:
+                    data = json.load(file)
+                return data
 
     def __process_tickers(self, path: str = None, tickers: dict[str:list] = None) -> dict[str:list]:
         """
@@ -45,33 +44,44 @@ class AlphaModule:
         - `dict`: A dictionary containing processed tickers.
         """
         t = self.__read_json_file(path)
-        clean = {
-            'Japan': '.T',
-            'Canada': '.TO',
-            'Austria': '.VI',
-            'Belgium': '.BR',
-            'Estonia': '.TL',
-            'France': '.PA',
-            'Germany': '.DE',
-            'Greece': '.AT',
-            'Hungary': '.BD',
-            'Italy': '.MI',
-            'Latvia': '.RG',
-            'Lithuania': '.VS',
-            'Netherlands': '.AS',
-            'Poland': '.WS',
-            'Portugal': '.LS',
-            'Romania': '.RO',
-            'Finland': '.HE',
-            'Spain': '.MC',
-            'Sweden': '.ST',
-            'Switzerland': '.SW',
-            'United Kingdom': '.L',
-            'New Zealand': '.NZ',
-            'Czech Republic': '.PR',
-            'USA': ''}
+        ret = {}
+        previously_seen = self.sheet_client.get_all_previously_seen_tickers()
+        removed = 0
+        for k, v in t.items():
+            init = len(v)
+            ret[k]=[i for i in v if i not in previously_seen]
+            removed += init-len(ret[k])
+        
+        print(f"{removed} tickers removed for being screened within the passed year.")
+        return ret
 
-        return t
+    async def __get_profile(self, session: aiohttp.ClientSession, ticker: str) -> str:
+        async with session.get(f'https://financialmodelingprep.com/api/v3/profile/{ticker}?apikey={self.key}') as response:
+            try:
+                return await response.json()
+            except Exception as e:
+                pass
+    
+    async def __get_historical(self, session: aiohttp.ClientSession, ticker: str) -> str:
+        async with session.get(f'https://financialmodelingprep.com/api/v3/historical-price-full/{ticker}?apikey={self.key}') as response:
+            try:
+                return await response.json()
+            except Exception as e:
+                pass
+    
+    async def __get_balance_sheet(self, session: aiohttp.ClientSession, ticker: str) -> str:
+        async with session.get(f'https://financialmodelingprep.com/api/v3/balance-sheet-statement/{ticker}?period=quarter&limit=5&apikey={self.key}') as response:
+            try:
+                return await response.json()
+            except Exception as e:
+                pass
+    
+    async def __get_cashflow(self, session: aiohttp.ClientSession, ticker: str) -> str:
+        async with session.get(f'https://financialmodelingprep.com/api/v3/cash-flow-statement/{ticker}?period=annual&limit=5&apikey={self.key}') as response:
+            try:
+                return await response.json()
+            except Exception as e:
+                pass
 
 
     def __format_request_str(self, limit:int=300) -> str:
@@ -101,35 +111,14 @@ class AlphaModule:
             print("Sleeping for 55 seconds to avoid hitting API limit")
             sleep(55)
     
-    async def __get_profile(self, session: aiohttp.ClientSession, ticker: str) -> str:
-        async with session.get(f'https://financialmodelingprep.com/api/v3/profile/{ticker}?apikey={self.key}') as response:
-            try:
-                return await response.json()
-            except Exception as e:
-                pass
+    def __sort_results(self) -> None:
+        # sort first on NCAV (lowest -> highest)
+        # second on upside (highest -> lowest)
+        
+        self.results = dict(sorted(self.results.items(), key=lambda x: (x[1]["NCAV Ratio"], x[1]["FV Upside Metric"])))
     
-    async def __get_historical(self, session: aiohttp.ClientSession, ticker: str) -> str:
-        async with session.get(f'https://financialmodelingprep.com/api/v3/historical-price-full/{ticker}?apikey={self.key}') as response:
-            try:
-                return await response.json()
-            except Exception as e:
-                pass
-    
-    async def __get_balance_sheet(self, session: aiohttp.ClientSession, ticker: str) -> str:
-        async with session.get(f'https://financialmodelingprep.com/api/v3/balance-sheet-statement/{ticker}?period=quarter&limit=5&apikey={self.key}') as response:
-            try:
-                return await response.json()
-            except Exception as e:
-                pass
-    
-    async def __get_cashflow(self, session: aiohttp.ClientSession, ticker: str) -> str:
-        async with session.get(f'https://financialmodelingprep.com/api/v3/cash-flow-statement/{ticker}?period=annual&limit=5&apikey={self.key}') as response:
-            try:
-                return await response.json()
-            except Exception as e:
-                pass
-    
-    async def run_async(self, debug:bool=False):
+
+    async def run_async(self, debug:bool=False) -> dict:
         # get all profiles
         # screen out any stocks without divs or buybacks
         # screen out any Chinese, Hong Kong, or Macau based companies/stocks.
@@ -140,7 +129,6 @@ class AlphaModule:
         blacklist = ["CN", "HK"]
         issues = []
         requests_sent = 0
-        stocks_added = 0
         async with aiohttp.ClientSession() as session: 
             for string in self.profile_fstr_arr:
                 res = await self.__get_profile(session, string)
@@ -169,7 +157,6 @@ class AlphaModule:
                         "Industry": profile["industry"],
                         "Has Dividends or Buybacks":div 
                     }
-                    stocks_added += 1
 
             # get all cashflow
             print(f"Phase I complete.\n{len(issues)} stocks removed") if debug else None
@@ -183,13 +170,12 @@ class AlphaModule:
                         buyback = sum([i["commonStockRepurchased"]
                                       for i in cf])
                         if buyback < 0:
-                            v['Has Dividends or Buybacks'] = buyback
+                            v['Has Dividends or Buybacks'] = 'buyback'
                     five_year_fcf_average = sum(
                         [i['freeCashFlow'] for i in cf])/5
                     average_yield = round(
                         (five_year_fcf_average/v['Market Cap'])*100, 2)
                     if average_yield < 10:
-                        print(f"removing for: AVG YIELD")
                         issues.append(k)
                         continue
                     v['5Y average yield > 10%'] = average_yield
@@ -198,7 +184,7 @@ class AlphaModule:
 
                 except Exception as ex:
                     issues.append(k)
-                    print(f"removing for: {ex}")
+                    print(f"removing for: {ex}") if debug else None
                     continue
             for i in issues:
                 stk_res.pop(i)
@@ -240,7 +226,7 @@ class AlphaModule:
                 try:
                     five_year_max = round(max([i['close'] for i in hist['historical']]), 2)
                     five_year_price_metric = ((five_year_max - hist['historical'][0]['close'])/hist['historical'][0]['close']) * 100
-                    v['5Y Price Metric'] = round(five_year_price_metric,2)
+                    v['5Y Price Metric'] = round(five_year_price_metric)
                     v['Current Price'] = round(hist['historical'][0]['close'], 2)
                     v['5Y Max'] = five_year_max
                 except:
@@ -256,7 +242,7 @@ class AlphaModule:
                 try:
                     fv_upside = (v['5Y average'] * 7) + v["Cash & Equivalents"]
                     upside_percentage = ((fv_upside-v['Market Cap'])/v['Market Cap']) * 100
-                    v['FV Upside Metric'] = round(upside_percentage, 2)
+                    v['FV Upside Metric'] = round(upside_percentage)
                 except:
                     issues.append(k)
             
@@ -264,5 +250,29 @@ class AlphaModule:
                 stk_res.pop(i)
             print(f"Phase V complete.\n{len(issues)} stocks removed") if debug else None
 
-        print(f"{requests_sent} requests sent")
-        return stk_res
+        print(f"{requests_sent} requests sent") if debug else None
+        self.results = stk_res
+        self.__sort_results()
+        return self.results
+    
+    def update_google_sheet(self, debug:bool=False) -> None:
+        self.sheet_client.create_new_tab()
+        self.sheet_client.add_row_data(self.results)
+        print("Google Sheet updated.") if debug else None
+    
+    def create_xlsx(self, file_path:str) -> None:
+        """
+        Creates an Excel file with the screening results.
+
+        Parameters:
+        - `file_path` (str): The path to the Excel file.
+
+        Returns:
+        - `None`
+        """
+        if len(self.results) == 0:
+            print(f'ERROR: results dictionary is empty. Execute `Screener.run()` to screen the stocks. If you are still seeing this after running `Screener.run()`, there are no new stocks from the previous execution.')
+        else:
+            df = pd.DataFrame.from_dict(self.results, orient='index')
+            df.to_excel(file_path)
+            print(f"File saved to {file_path}")
