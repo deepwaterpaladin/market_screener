@@ -3,7 +3,6 @@ from screener.Sheet import Sheet
 import pandas as pd
 from time import sleep
 import aiohttp
-import asyncio
 import os
 import json
 
@@ -130,7 +129,7 @@ class AlphaModule:
             except Exception as e:
                 pass
     
-    async def run_async(self):
+    async def run_async(self, debug:bool=False):
         # get all profiles
         # screen out any stocks without divs or buybacks
         # screen out any Chinese, Hong Kong, or Macau based companies/stocks.
@@ -150,18 +149,15 @@ class AlphaModule:
                     continue
                 for profile in res:
                     if int(profile['mktCap']) <= 0:
-                        print(f"removing for: Market Cap")
                         issues.append(profile['symbol'])
                         continue
                     if profile['country'] in blacklist:
-                        print(f"removing for: BL")
                         issues.append(profile['symbol'])
                         continue
                     try:
                         # Attempt to get the dividend value
                         div = float(profile.get("lastDiv", 0))
                     except (IndexError, ValueError, TypeError):
-                        print(f"removing for: ERROR")
                         issues.append(profile['symbol'])
                         continue
 
@@ -176,7 +172,7 @@ class AlphaModule:
                     stocks_added += 1
 
             # get all cashflow
-            print(f"Phase I complete.\n{len(issues)} stocks removed")
+            print(f"Phase I complete.\n{len(issues)} stocks removed") if debug else None
             issues = []
             for k, v in stk_res.items():
                 self.__check_reqs(requests_sent)
@@ -209,7 +205,7 @@ class AlphaModule:
             
             
             # get all balencesheets
-            print(f"Phase II complete.\n{len(issues)} stocks removed")
+            print(f"Phase II complete.\n{len(issues)} stocks removed") if debug else None
             issues = []
             for k, v in stk_res.items():
                 self.__check_reqs(requests_sent)
@@ -234,7 +230,7 @@ class AlphaModule:
             
             for i in issues:
                 stk_res.pop(i)
-            print(f"Phase III complete.\n{len(issues)} stocks removed")
+            print(f"Phase III complete.\n{len(issues)} stocks removed") if debug else None
 
             issues = []
             for k, v in stk_res.items():
@@ -253,7 +249,20 @@ class AlphaModule:
             
             for i in issues:
                 stk_res.pop(i)
-            print(f"Phase IV complete.\n{len(issues)} stocks removed")
+            print(f"Phase IV complete.\n{len(issues)} stocks removed") if debug else None
+
+            issues = []
+            for k, v in stk_res.items():
+                try:
+                    fv_upside = (v['5Y average'] * 7) + v["Cash & Equivalents"]
+                    upside_percentage = ((fv_upside-v['Market Cap'])/v['Market Cap']) * 100
+                    v['FV Upside Metric'] = round(upside_percentage, 2)
+                except:
+                    issues.append(k)
+            
+            for i in issues:
+                stk_res.pop(i)
+            print(f"Phase V complete.\n{len(issues)} stocks removed") if debug else None
 
         print(f"{requests_sent} requests sent")
         return stk_res
