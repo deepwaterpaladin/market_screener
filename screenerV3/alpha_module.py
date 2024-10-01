@@ -116,7 +116,7 @@ class AlphaModule:
 
             for i in negative_payback_rating:
                 self.results.pop(i)
-            print(f"{len(negative_payback_rating)} tickers removed for negative payback rating.") if debug else None
+        print(f"{len(negative_payback_rating)} tickers removed for negative payback rating.") if debug else None
 
     def __format_request_str(self, limit:int=300) -> str:
         """
