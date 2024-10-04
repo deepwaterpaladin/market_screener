@@ -1,5 +1,6 @@
 from dotenv import load_dotenv
 from screener.Sheet import Sheet
+from .utilities import Handler
 import pandas as pd
 from time import sleep
 import aiohttp
@@ -12,49 +13,13 @@ load_dotenv()
 class AlphaModule:
     def __init__(self, ticker_path: str, sheet_path:str = "./service_account.json", sheet_name: str = "Screener") -> None:
         self.sheet_client = Sheet(sheet_path= sheet_path, file_name=sheet_name)
-        self.tickers = self.__process_tickers(ticker_path)
+        self.tickers = Handler().process_tickers(self.sheet_client,ticker_path)
         self.profile_fstr_arr = self.__format_request_str(1000)
         self.hist_fstr_arr = self.__format_request_str(300)
         self.key = os.environ['FMP_KEY']
         self.results = {}
-    
-    def __read_json_file(self, file_path) -> dict[str:list]:
-                """
-                Reads a JSON file and returns its content as a dictionary.
-
-                Parameters:
-                - `file_path` (str): The path to the JSON file.
-
-                Returns:
-                - `dict`: A dictionary containing the content of the JSON file.
-                """
-                with open(file_path, 'r') as file:
-                    data = json.load(file)
-                return data
-
-    def __process_tickers(self, path: str = None, tickers: dict[str:list] = None) -> dict[str:list]:
-        """
-        Processes tickers from a JSON file.
-
-        Parameters:
-        - `path` (str): The path to the JSON file containing stock tickers. Defaults to None.
-        - `tickers` (dict): A dictionary of tickers. Defaults to None.
-
-        Returns:
-        - `dict`: A dictionary containing processed tickers.
-        """
-        t = self.__read_json_file(path)
-        ret = {}
-        previously_seen = self.sheet_client.get_all_previously_seen_tickers()
-        removed = 0
-        for k, v in t.items():
-            init = len(v)
-            ret[k]=[i for i in v if i not in previously_seen]
-            removed += init-len(ret[k])
-        
-        print(f"{removed} tickers removed for being screened within the passed year.")
-        return ret
-    
+        self.floats = None
+ 
     def __get_ticker_count(self) -> int:
         num = 0
         for k, v in self.tickers.items():
@@ -90,6 +55,38 @@ class AlphaModule:
             except Exception as e:
                 pass
 
+    async def __get_key_metrics(self, session: aiohttp.ClientSession, ticker: str) -> str:
+        """
+        Retrieves the key metrics TTM (Trailing Twelve Months) for a given ticker.
+
+        Parameters:
+        - `session` (aiohttp.ClientSession): The aiohttp session to use for making requests.
+        - `ticker` (str): The stock ticker symbol.
+
+        Returns:
+        - `str`: The key metrics TTM data in JSON format.
+        """
+        async with session.get(f'https://financialmodelingprep.com/api/v3/key-metrics-ttm/{ticker}?period=quarter&apikey={self.key}') as response:
+            try:
+                return await response.json()
+            except Exception as e:
+                pass
+    
+    async def __get_floats(self) -> None:
+        """
+        Retrieves float data for all stocks.
+
+        Returns:
+        - `None`
+        """
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"https://financialmodelingprep.com/api/v4/shares_float/all?apikey={self.key}") as response:
+                try:
+                    self.floats = await response.json()
+                except Exception as e:
+                    print(f"Error fetching floats: {e}")
+                    self.floats = None
+    
     def __calculate_packback_rating(self, debug: bool = False) -> None:
         """
         Calculates the payback rating for the screening results.
@@ -144,6 +141,22 @@ class AlphaModule:
         if requests_sent % 299 == 0:
             print("Sleeping for 55 seconds to avoid hitting API limit.")
             sleep(55)
+    
+    def __find_float_from_ticker(self, ticker) -> int:
+        """
+        Finds the float (outstanding shares) for a given ticker.
+
+        Parameters:
+        - `ticker` (str): The stock ticker symbol.
+
+        Returns:
+        - `int`: The number of outstanding shares, or 0 if not found.
+        """
+        for v in self.floats:
+            if v['symbol'] == ticker:
+                return v['outstandingShares']
+        
+        return 0 # if ticker can't be found, return 0
     
     def __sort_results(self) -> None:
         # sort first on NCAV (lowest -> highest)
@@ -218,7 +231,7 @@ class AlphaModule:
                     if v['Has Dividends or Buybacks'] == 0:
                         issues.append(k)
                         continue
-
+                    v['fcfSum'] = [i['freeCashFlow'] for i in cf]
                 except Exception as ex:
                     issues.append(k)
                     print(f"removing for: {ex}") if debug else None
@@ -292,11 +305,31 @@ class AlphaModule:
             
             starting_stocks = starting_stocks-len(issues)
             print(f"Phase V complete.\n{len(issues)} stocks removed.\n{starting_stocks} remaining.") if debug else None
+            self.__check_reqs(requests_sent)
+            await self.__get_floats()
+            requests_sent +=1
+
+            for k, v in stk_res.items():
+                try:
+                    self.__check_reqs(requests_sent)
+                    key_metrics_ttm = await self.__get_key_metrics(session, k)
+                    requests_sent += 1
+                    free_float = self.__find_float_from_ticker(k)
+                    y_0_ttm = key_metrics_ttm[0]['freeCashFlowPerShareTTM'] * free_float
+                    total = y_0_ttm + sum(v['fcfSum'])
+                    five_year_fcf_average = total / 5 
+                    v['EV/aFCF'] = round(key_metrics_ttm[0]['enterpriseValueTTM']/five_year_fcf_average)
+
+                except:
+                    v['EV/aFCF'] = 100
+
 
         print(f"{requests_sent} requests sent") if debug else None
         self.results = stk_res
         self.__calculate_packback_rating(debug)
         self.__sort_results()
+        for k, v in self.results.items():
+            v.pop('fcfSum', None)
         return self.results
     
     def update_google_sheet(self, debug:bool=False) -> None:
