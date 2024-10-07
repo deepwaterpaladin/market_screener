@@ -20,7 +20,7 @@ class BetaModule:
         self.key = os.environ['FMP_KEY']
         self.results = {}
         self.floats = None
-    
+           
     def __get_ticker_count(self) -> int:
         num = 0
         for k, v in self.tickers.items():
@@ -107,8 +107,7 @@ class BetaModule:
                     self.floats = await response.json()
                 except Exception as e:
                     print(f"Error fetching floats: {e}")
-                    self.floats = None
-    
+                    self.floats = None  
 
     def __find_float_from_ticker(self, ticker) -> int:
         """
@@ -150,6 +149,8 @@ class BetaModule:
         issues = []
         requests_sent = 0
         starting_stocks = self.__get_ticker_count()
+        await self.__get_floats()
+        requests_sent +=1
         print(f"Screening {starting_stocks} stocks...")
         async with aiohttp.ClientSession() as session:
             for string in self.profile_fstr_arr:
@@ -209,11 +210,14 @@ class BetaModule:
             for i in issues:
                 stk_res.pop(i)
             
+            starting_stocks = starting_stocks-len(issues)
+            print(f"Phase II complete.\n{len(issues)} stocks removed.\n{starting_stocks} remaining.") if debug else None
             issues = []
             for k, v in stk_res.items():
                 self.__check_reqs(requests_sent)
                 km = await self.__get_key_metrics(session, k)
                 requests_sent += 1
+                self.__check_reqs(requests_sent)
                 cf = await self.__get_cashflow(session, k)
                 requests_sent +=1
                 try:
@@ -223,8 +227,10 @@ class BetaModule:
                     total = y_0_ttm + sum(rest)
                     five_year_fcf_average = total / 5 
                     pfcfRatio = v["Market Cap"]/five_year_fcf_average
+                    v['5Y average'] = five_year_fcf_average
+                    v["Cash & Equivalents"]= cf[0]["cashAtEndOfPeriod"]
                     
-                    res["P/aFCF Ratio"] = round(pfcfRatio, 1)
+                    v["P/aFCF Ratio"] = round(pfcfRatio, 1)
                     if pfcfRatio > 0 and pfcfRatio < 10:
                         v["isAdded"] = True
                     
@@ -247,10 +253,49 @@ class BetaModule:
                     if pTBV > 0 and pTBV < 1:
                         v["isAdded"] = True
                         v["P/TBV Ratio"] = round(pTBV, 1)
+                except Exception as e:
+                    print(e)
+                    issues.append(k)
+                    continue
+        
+            for i in issues:
+                stk_res.pop(i)
+            
+            starting_stocks = starting_stocks-len(issues)
+            print(f"Phase III complete.\n{len(issues)} stocks removed.\n{starting_stocks} remaining.") if debug else None
+            issues = []
+            for k, v in stk_res.items():
+                self.__check_reqs(requests_sent)
+                hist = await self.__get_historical(session, k)
+                requests_sent += 1 
+                try:
+                    five_year_max = round(max([i['close'] for i in hist['historical']]), 2)
+                    five_year_price_metric = ((five_year_max - hist['historical'][0]['close'])/hist['historical'][0]['close']) * 100
+                    v['5Y Price Metric'] = round(five_year_price_metric)
+                    v['Current Price'] = round(hist['historical'][0]['close'], 2)
+                    v['5Y Max'] = five_year_max
                 except:
                     issues.append(k)
                     continue
-
+            
+            for i in issues:
+                stk_res.pop(i)
+            
+            starting_stocks = starting_stocks-len(issues)
+            print(f"Phase IV complete.\n{len(issues)} stocks removed.\n{starting_stocks} remaining.") if debug else None
+            issues = []
+            for k, v in stk_res.items():
+                try:
+                    fv_upside = (v['5Y average'] * 7) + v["Cash & Equivalents"]
+                    upside_percentage = ((fv_upside-v['Market Cap'])/v['Market Cap']) * 100
+                    v['FV Upside Metric'] = round(upside_percentage)
+                except:
+                    issues.append(k)
+            
+            starting_stocks = starting_stocks-len(issues)
+            print(f"Phase IV complete.\n{len(issues)} stocks removed.\n{starting_stocks} remaining.") if debug else None
+            for i in issues:
+                stk_res.pop(i)
             
             self.results = self.__clean_results(stk_res)
             return stk_res
