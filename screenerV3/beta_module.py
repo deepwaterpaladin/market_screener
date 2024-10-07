@@ -1,7 +1,6 @@
 from dotenv import load_dotenv
 from screener.Sheet import Sheet
 import pandas as pd
-from time import sleep
 import aiohttp
 import os
 import json
