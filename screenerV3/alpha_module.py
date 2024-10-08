@@ -239,8 +239,6 @@ class AlphaModule:
             for i in issues:
                 stk_res.pop(i)
             
-            
-            # get all balencesheets
             starting_stocks = starting_stocks-len(issues)
             print(f"Phase II complete.\n{len(issues)} stocks removed.\n{starting_stocks} remaining.") if debug else None
             issues = []
