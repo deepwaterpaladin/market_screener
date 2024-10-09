@@ -143,11 +143,17 @@ class BetaModule:
         
         return ret
     
+    def __sort_results(self) -> None:
+        # sort first on NCAV (lowest -> highest)
+        # second on upside (highest -> lowest)
+        self.results = dict(sorted(self.results.items(), key=lambda x: (x[1]["P/TBV Ratio"], x[1]["FV Upside Metric"])))
+    
+    
     async def run_async(self, debug:bool=False) -> dict:
         stk_res = {}
         blacklist = ["CN", "HK"]
         issues = []
-        requests_sent = 0
+        requests_sent = 2
         starting_stocks = self.__get_ticker_count()
         await self.__get_floats()
         requests_sent +=1
@@ -159,14 +165,15 @@ class BetaModule:
                 if res is None:
                     continue
                 for profile in res:
-                    if int(profile['mktCap']) <= 0:
-                        issues.append(profile['symbol'])
-                        continue
-                    if profile['country'] in blacklist:
-                        issues.append(profile['symbol'])
-                        continue
-                    
                     try:
+                        if int(profile['mktCap']) <= 0:
+                            issues.append(profile['symbol'])
+                            continue
+                        if profile['country'] in blacklist:
+                            issues.append(profile['symbol'])
+                            continue
+                    
+                    
                         if profile['industry'][:5] == "Banks" or profile['industry'][:9] == "Insurance" or profile["industry"][:9] == "Financial" or profile['industry'][:10] == "Investment" or profile['industry'] == "Asset Management":
                             issues.append(profile['symbol'])
                             continue
@@ -239,6 +246,7 @@ class BetaModule:
                         if i < 0:
                             negCashflow += 1
                     if negCashflow > 2:
+                        issues.append(k)
                         continue
                     ev = km[0]["enterpriseValueTTM"]
                     v["EV"] = round(ev, 1)
@@ -249,12 +257,12 @@ class BetaModule:
                         v["EV/aFCF"] = round(evFCF, 1)
                     
                     pTBV = v["Market Cap"]/km[0]['tangibleAssetValueTTM']
+                    v["P/TBV Ratio"] = round(pTBV)
                     
                     if pTBV > 0 and pTBV < 1:
                         v["isAdded"] = True
-                        v["P/TBV Ratio"] = round(pTBV, 1)
+                    
                 except Exception as e:
-                    print(e)
                     issues.append(k)
                     continue
         
@@ -298,4 +306,5 @@ class BetaModule:
                 stk_res.pop(i)
             
             self.results = self.__clean_results(stk_res)
+            self.__sort_results()
             return stk_res

@@ -1,3 +1,4 @@
+import aiohttp
 from dotenv import load_dotenv
 import os
 import json
@@ -45,3 +46,49 @@ class Handler:
         
         print(f"{removed} tickers removed for being screened within the passed year.")
         return ret
+    
+    async def get_profile(self, session: aiohttp.ClientSession, ticker: str) -> str:
+        async with session.get(f'https://financialmodelingprep.com/api/v3/profile/{ticker}?apikey={self.key}') as response:
+            try:
+                return await response.json()
+            except Exception as e:
+                pass
+    
+    async def get_historical(self, session: aiohttp.ClientSession, ticker: str) -> str:
+        async with session.get(f'https://financialmodelingprep.com/api/v3/historical-price-full/{ticker}?apikey={self.key}') as response:
+            try:
+                return await response.json()# if response.status == 200 else print("Hit API limit. Waiting 55 seconds.") and sleep(55)
+            except Exception as e:
+                pass
+    
+    async def get_balance_sheet(self, session: aiohttp.ClientSession, ticker: str) -> str:
+        async with session.get(f'https://financialmodelingprep.com/api/v3/balance-sheet-statement/{ticker}?period=quarter&limit=5&apikey={self.key}') as response:
+            try:
+                return await response.json()# if response.status == 200 else print("Hit API limit. Waiting 55 seconds.") and sleep(55)
+            except Exception as e:
+                pass
+    
+    async def get_cashflow(self, session: aiohttp.ClientSession, ticker: str) -> str:
+        async with session.get(f'https://financialmodelingprep.com/api/v3/cash-flow-statement/{ticker}?period=annual&limit=5&apikey={self.key}') as response:
+            try:
+                return await response.json()# if response.status == 200 else print("Hit API limit. Waiting 55 seconds.") and sleep(55)
+            except Exception as e:
+                pass
+
+    async def get_key_metrics(self, session: aiohttp.ClientSession, ticker: str) -> str:
+        """
+        Retrieves the key metrics TTM (Trailing Twelve Months) for a given ticker.
+
+        Parameters:
+        - `session` (aiohttp.ClientSession): The aiohttp session to use for making requests.
+        - `ticker` (str): The stock ticker symbol.
+
+        Returns:
+        - `str`: The key metrics TTM data in JSON format.
+        """
+        async with session.get(f'https://financialmodelingprep.com/api/v3/key-metrics-ttm/{ticker}?period=quarter&apikey={self.key}') as response:
+            try:
+                return await response.json()
+            except Exception as e:
+                pass
+    
