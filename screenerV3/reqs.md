@@ -19,7 +19,7 @@
 - Column Updates
     - New structure: | Ticker | Name | NCAV Ratio | EV Yield | TBV Ratio | FCF Yield | FV Upside | 5-Y Price | Country
 - Implement Custom Ranking Algorithm
-- Sort by: NCAV ratio (lowest at the top); if no NCAV ratio then it should be ranked by TBV ratio (lowest at the top instead); if no TBV ratio either, then it should be ranked by upside percentage with the highest percentage at the top.
+  - Sort by: NCAV ratio (lowest at the top); if no NCAV ratio then it should be ranked by TBV ratio (lowest at the top instead); if no TBV ratio either, then it should be ranked by upside percentage with the highest percentage at the top.
 
 ## V2 Screener Additions
 
@@ -34,9 +34,9 @@
 ## V2 Screener Alterations
 
 - EV/aFCF earnings Ratio
-- Update data type to percentage rather than ratio
-- change default behaviour for "N/A" to display "100%"
-- if the EV is negative the yield will display as a default '100%'.
+  - Update data type to percentage rather than ratio
+  - change default behaviour for "N/A" to display "100%"
+  - if the EV is negative the yield will display as a default '100%'.
 - V2 screener displays each column rather than displaying 'N/A' if it doesn't fall into the correct criteria. it will display the ratio (even if its above 2) and only display 'N/A' if the NCAV is actually negative.
 - Column Updates - New structure: | Ticker | Name | NCAV Ratio | EV Yield | TBV Ratio | FCF Yield | FV Upside | 5-Y Price | Country 
 - Implement Custom Ranking Algorithm 
