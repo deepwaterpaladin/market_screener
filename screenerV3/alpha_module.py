@@ -13,7 +13,8 @@ load_dotenv()
 class AlphaModule:
     def __init__(self, ticker_path: str, sheet_path:str = "./service_account.json", sheet_name: str = "Screener") -> None:
         self.sheet_client = Sheet(sheet_path= sheet_path, file_name=sheet_name)
-        self.tickers = Handler().process_tickers(self.sheet_client,ticker_path)
+        self.handler = Handler()
+        self.tickers = self.handler.process_tickers(self.sheet_client,ticker_path)
         self.profile_fstr_arr = self.__format_request_str(1000)
         self.hist_fstr_arr = self.__format_request_str(300)
         self.key = os.environ['FMP_KEY']
@@ -25,68 +26,7 @@ class AlphaModule:
         for k, v in self.tickers.items():
             num += len(v)
         return num
-
-
-    async def __get_profile(self, session: aiohttp.ClientSession, ticker: str) -> str:
-        async with session.get(f'https://financialmodelingprep.com/api/v3/profile/{ticker}?apikey={self.key}') as response:
-            try:
-                return await response.json()
-            except Exception as e:
-                pass
-    
-    async def __get_historical(self, session: aiohttp.ClientSession, ticker: str) -> str:
-        async with session.get(f'https://financialmodelingprep.com/api/v3/historical-price-full/{ticker}?apikey={self.key}') as response:
-            try:
-                return await response.json()# if response.status == 200 else print("Hit API limit. Waiting 55 seconds.") and sleep(55)
-            except Exception as e:
-                pass
-    
-    async def __get_balance_sheet(self, session: aiohttp.ClientSession, ticker: str) -> str:
-        async with session.get(f'https://financialmodelingprep.com/api/v3/balance-sheet-statement/{ticker}?period=quarter&limit=5&apikey={self.key}') as response:
-            try:
-                return await response.json()# if response.status == 200 else print("Hit API limit. Waiting 55 seconds.") and sleep(55)
-            except Exception as e:
-                pass
-    
-    async def __get_cashflow(self, session: aiohttp.ClientSession, ticker: str) -> str:
-        async with session.get(f'https://financialmodelingprep.com/api/v3/cash-flow-statement/{ticker}?period=annual&limit=5&apikey={self.key}') as response:
-            try:
-                return await response.json()# if response.status == 200 else print("Hit API limit. Waiting 55 seconds.") and sleep(55)
-            except Exception as e:
-                pass
-
-    async def __get_key_metrics(self, session: aiohttp.ClientSession, ticker: str) -> str:
-        """
-        Retrieves the key metrics TTM (Trailing Twelve Months) for a given ticker.
-
-        Parameters:
-        - `session` (aiohttp.ClientSession): The aiohttp session to use for making requests.
-        - `ticker` (str): The stock ticker symbol.
-
-        Returns:
-        - `str`: The key metrics TTM data in JSON format.
-        """
-        async with session.get(f'https://financialmodelingprep.com/api/v3/key-metrics-ttm/{ticker}?period=quarter&apikey={self.key}') as response:
-            try:
-                return await response.json()
-            except Exception as e:
-                pass
-    
-    async def __get_floats(self) -> None:
-        """
-        Retrieves float data for all stocks.
-
-        Returns:
-        - `None`
-        """
-        async with aiohttp.ClientSession() as session:
-            async with session.get(f"https://financialmodelingprep.com/api/v4/shares_float/all?apikey={self.key}") as response:
-                try:
-                    self.floats = await response.json()
-                except Exception as e:
-                    print(f"Error fetching floats: {e}")
-                    self.floats = None
-    
+ 
     def __calculate_packback_rating(self, debug: bool = False) -> None:
         """
         Calculates the payback rating for the screening results.
@@ -163,7 +103,6 @@ class AlphaModule:
         # second on upside (highest -> lowest)
         self.results = dict(sorted(self.results.items(), key=lambda x: (x[1]["NCAV Ratio"], x[1]["FV Upside Metric"])))
     
-
     async def run_async(self, debug:bool=False) -> dict:
         stk_res = {}
         blacklist = ["CN", "HK"]
@@ -173,7 +112,7 @@ class AlphaModule:
         print(f"Screening {starting_stocks} stocks...")
         async with aiohttp.ClientSession() as session: 
             for string in self.profile_fstr_arr:
-                res = await self.__get_profile(session, string)
+                res = await self.handler.get_profile(session, string)
                 requests_sent += 1
                 if res is None:
                     continue
@@ -210,7 +149,7 @@ class AlphaModule:
             issues = []
             for k, v in stk_res.items():
                 self.__check_reqs(requests_sent)
-                cf = await self.__get_cashflow(session, k)
+                cf = await self.handler.get_cashflow(session, k)
                 requests_sent += 1
                 try:
                     if v['Has Dividends or Buybacks'] < 1:
@@ -244,7 +183,7 @@ class AlphaModule:
             issues = []
             for k, v in stk_res.items():
                 self.__check_reqs(requests_sent)
-                bs = await self.__get_balance_sheet(session, k)
+                bs = await self.handler.get_balance_sheet(session, k)
                 requests_sent += 1
                 try:
                     net_debt = int(bs[0]["netDebt"])
@@ -272,7 +211,7 @@ class AlphaModule:
             issues = []
             for k, v in stk_res.items():
                 self.__check_reqs(requests_sent)
-                hist = await self.__get_historical(session, k)
+                hist = await self.handler.get_historical(session, k)
                 requests_sent += 1 
                 try:
                     five_year_max = round(max([i['close'] for i in hist['historical']]), 2)
@@ -304,7 +243,7 @@ class AlphaModule:
             starting_stocks = starting_stocks-len(issues)
             print(f"Phase V complete.\n{len(issues)} stocks removed.\n{starting_stocks} remaining.") if debug else None
             self.__check_reqs(requests_sent)
-            await self.__get_floats()
+            self.floats = await self.handler.get_floats()
             requests_sent +=1
 
             for k, v in stk_res.items():
@@ -320,7 +259,6 @@ class AlphaModule:
 
                 except:
                     v['EV/aFCF'] = 100
-
 
         print(f"{requests_sent} requests sent") if debug else None
         self.results = stk_res
