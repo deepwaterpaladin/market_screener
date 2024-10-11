@@ -1,11 +1,9 @@
 from dotenv import load_dotenv
 from screener.Sheet import Sheet
 from .utilities import Handler
-import pandas as pd
 from time import sleep
 import aiohttp
 import os
-import json
 
 load_dotenv()
 
@@ -49,66 +47,6 @@ class BetaModule:
         
         return request_strings
     
-    async def __get_profile(self, session: aiohttp.ClientSession, ticker: str) -> str:
-        async with session.get(f'https://financialmodelingprep.com/api/v3/profile/{ticker}?apikey={self.key}') as response:
-            try:
-                return await response.json()
-            except Exception as e:
-                pass
-    
-    async def __get_historical(self, session: aiohttp.ClientSession, ticker: str) -> str:
-        async with session.get(f'https://financialmodelingprep.com/api/v3/historical-price-full/{ticker}?apikey={self.key}') as response:
-            try:
-                return await response.json()# if response.status == 200 else print("Hit API limit. Waiting 55 seconds.") and sleep(55)
-            except Exception as e:
-                pass
-    
-    async def __get_balance_sheet(self, session: aiohttp.ClientSession, ticker: str) -> str:
-        async with session.get(f'https://financialmodelingprep.com/api/v3/balance-sheet-statement/{ticker}?period=quarter&limit=5&apikey={self.key}') as response:
-            try:
-                return await response.json()# if response.status == 200 else print("Hit API limit. Waiting 55 seconds.") and sleep(55)
-            except Exception as e:
-                pass
-    
-    async def __get_cashflow(self, session: aiohttp.ClientSession, ticker: str) -> str:
-        async with session.get(f'https://financialmodelingprep.com/api/v3/cash-flow-statement/{ticker}?period=annual&limit=5&apikey={self.key}') as response:
-            try:
-                return await response.json()# if response.status == 200 else print("Hit API limit. Waiting 55 seconds.") and sleep(55)
-            except Exception as e:
-                pass
-
-    async def __get_key_metrics(self, session: aiohttp.ClientSession, ticker: str) -> str:
-        """
-        Retrieves the key metrics TTM (Trailing Twelve Months) for a given ticker.
-
-        Parameters:
-        - `session` (aiohttp.ClientSession): The aiohttp session to use for making requests.
-        - `ticker` (str): The stock ticker symbol.
-
-        Returns:
-        - `str`: The key metrics TTM data in JSON format.
-        """
-        async with session.get(f'https://financialmodelingprep.com/api/v3/key-metrics-ttm/{ticker}?period=quarter&apikey={self.key}') as response:
-            try:
-                return await response.json()
-            except Exception as e:
-                pass
-    
-    async def __get_floats(self) -> None:
-        """
-        Retrieves float data for all stocks.
-
-        Returns:
-        - `None`
-        """
-        async with aiohttp.ClientSession() as session:
-            async with session.get(f"https://financialmodelingprep.com/api/v4/shares_float/all?apikey={self.key}") as response:
-                try:
-                    self.floats = await response.json()
-                except Exception as e:
-                    print(f"Error fetching floats: {e}")
-                    self.floats = None  
-
     def __find_float_from_ticker(self, ticker) -> int:
         """
         Finds the float (outstanding shares) for a given ticker.
@@ -147,20 +85,19 @@ class BetaModule:
         # sort first on NCAV (lowest -> highest)
         # second on upside (highest -> lowest)
         self.results = dict(sorted(self.results.items(), key=lambda x: (x[1]["P/TBV Ratio"], x[1]["FV Upside Metric"])))
-    
-    
+       
     async def run_async(self, debug:bool=False) -> dict:
         stk_res = {}
         blacklist = ["CN", "HK"]
         issues = []
         requests_sent = 2
         starting_stocks = self.__get_ticker_count()
-        await self.__get_floats()
+        self.floats = await self.handler.get_floats()
         requests_sent +=1
         print(f"Screening {starting_stocks} stocks...")
         async with aiohttp.ClientSession() as session:
             for string in self.profile_fstr_arr:
-                res = await self.__get_profile(session, string)
+                res = await self.handler.get_profile(session, string)
                 requests_sent += 1
                 if res is None:
                     continue
@@ -197,7 +134,7 @@ class BetaModule:
             issues = []
             for k, v in stk_res.items():
                 self.__check_reqs(requests_sent)
-                bs = await self.__get_balance_sheet(session, k)
+                bs = await self.handler.get_balance_sheet(session, k)
                 requests_sent += 1
                 try: 
                     current_assets = int(bs[0]["totalCurrentAssets"])
@@ -222,10 +159,10 @@ class BetaModule:
             issues = []
             for k, v in stk_res.items():
                 self.__check_reqs(requests_sent)
-                km = await self.__get_key_metrics(session, k)
+                km = await self.handler.get_key_metrics(session, k)
                 requests_sent += 1
                 self.__check_reqs(requests_sent)
-                cf = await self.__get_cashflow(session, k)
+                cf = await self.handler.get_cashflow(session, k)
                 requests_sent +=1
                 try:
                     free_float = self.__find_float_from_ticker(k)
@@ -249,7 +186,7 @@ class BetaModule:
                         issues.append(k)
                         continue
                     ev = km[0]["enterpriseValueTTM"]
-                    v["EV"] = round(ev, 1)
+                    v["EV"] = round(ev)
                     evFCF = ev/five_year_fcf_average
                     
                     if evFCF > 1 and evFCF < 5:
@@ -274,7 +211,7 @@ class BetaModule:
             issues = []
             for k, v in stk_res.items():
                 self.__check_reqs(requests_sent)
-                hist = await self.__get_historical(session, k)
+                hist = await self.handler.get_historical(session, k)
                 requests_sent += 1 
                 try:
                     five_year_max = round(max([i['close'] for i in hist['historical']]), 2)
@@ -308,3 +245,9 @@ class BetaModule:
             self.results = self.__clean_results(stk_res)
             self.__sort_results()
             return stk_res
+        
+    def update_google_sheet(self, debug:bool=False) -> None:
+        self.sheet_client.create_new_tab_v2()
+        self.sheet_client.add_row_data_v2(self.results)
+        if debug:
+            print("Google Sheet updated.")

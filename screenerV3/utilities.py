@@ -2,6 +2,8 @@ import aiohttp
 from dotenv import load_dotenv
 import os
 import json
+
+import pandas as pd
 from screener.Sheet import Sheet
 
 load_dotenv()
@@ -48,28 +50,28 @@ class Handler:
         return ret
     
     async def get_profile(self, session: aiohttp.ClientSession, ticker: str) -> str:
-        async with session.get(f'https://financialmodelingprep.com/api/v3/profile/{ticker}?apikey={self.key}') as response:
+        async with session.get(f'https://financialmodelingprep.com/api/v3/profile/{ticker}?apikey={self.api_key}') as response:
             try:
                 return await response.json()
             except Exception as e:
                 pass
     
     async def get_historical(self, session: aiohttp.ClientSession, ticker: str) -> str:
-        async with session.get(f'https://financialmodelingprep.com/api/v3/historical-price-full/{ticker}?apikey={self.key}') as response:
+        async with session.get(f'https://financialmodelingprep.com/api/v3/historical-price-full/{ticker}?apikey={self.api_key}') as response:
             try:
                 return await response.json()# if response.status == 200 else print("Hit API limit. Waiting 55 seconds.") and sleep(55)
             except Exception as e:
                 pass
     
     async def get_balance_sheet(self, session: aiohttp.ClientSession, ticker: str) -> str:
-        async with session.get(f'https://financialmodelingprep.com/api/v3/balance-sheet-statement/{ticker}?period=quarter&limit=5&apikey={self.key}') as response:
+        async with session.get(f'https://financialmodelingprep.com/api/v3/balance-sheet-statement/{ticker}?period=quarter&limit=5&apikey={self.api_key}') as response:
             try:
                 return await response.json()# if response.status == 200 else print("Hit API limit. Waiting 55 seconds.") and sleep(55)
             except Exception as e:
                 pass
     
     async def get_cashflow(self, session: aiohttp.ClientSession, ticker: str) -> str:
-        async with session.get(f'https://financialmodelingprep.com/api/v3/cash-flow-statement/{ticker}?period=annual&limit=5&apikey={self.key}') as response:
+        async with session.get(f'https://financialmodelingprep.com/api/v3/cash-flow-statement/{ticker}?period=annual&limit=5&apikey={self.api_key}') as response:
             try:
                 return await response.json()# if response.status == 200 else print("Hit API limit. Waiting 55 seconds.") and sleep(55)
             except Exception as e:
@@ -86,9 +88,37 @@ class Handler:
         Returns:
         - `str`: The key metrics TTM data in JSON format.
         """
-        async with session.get(f'https://financialmodelingprep.com/api/v3/key-metrics-ttm/{ticker}?period=quarter&apikey={self.key}') as response:
+        async with session.get(f'https://financialmodelingprep.com/api/v3/key-metrics-ttm/{ticker}?period=quarter&apikey={self.api_key}') as response:
             try:
                 return await response.json()
             except Exception as e:
                 pass
     
+    async def get_floats(self) -> None:
+        """
+        Retrieves float data for all stocks.
+
+        Returns:
+        - `None`
+        """
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"https://financialmodelingprep.com/api/v4/shares_float/all?apikey={self.api_key}") as response:
+                try:
+                    return await response.json()
+                except Exception as e:
+                    print(f"Error fetching floats: {e}")
+                    return None
+    
+    def create_xlsx(self, file_path:str, results:dict) -> None:
+        """
+        Creates an Excel file with the screening results.
+
+        Parameters:
+        - `file_path` (str): The path to the Excel file.
+
+        Returns:
+        - `None`
+        """
+        df = pd.DataFrame.from_dict(results, orient='index')
+        df.to_excel(file_path)
+        print(f"File saved to {file_path}")
