@@ -41,6 +41,14 @@ class Sheet:
         sheet = self.__get_worksheet_names()[-1]
         sheet.append_row(values= ["Ticker", "Company Name", "NCAV Ratio", "Payback Rating", "Average Yield", "HQ Country", "Exchange Country"],table_range='A1:G1')
 
+    def __add_alpha_header(self) -> None:
+        sheet = self.__get_worksheet_names()[-1]
+        sheet.append_row(values= ["Ticker", "Company Name", "NCAV Ratio", "EV/aFCF", "Average Yield", "FV Upside", "5Y Price Metric", "HQ Location"],table_range='A1:H1')
+
+    def __add_beta_header(self) -> None:
+        sheet = self.__get_worksheet_names()[-1]
+        sheet.append_row(values= ["Ticker", "Company Name", "NCAV Ratio",  "EV/aFCF", "P/TBV Ratio", "FV Upside", "5Y Price Metric", "HQ Location"],table_range='A1:H1')
+    
     def __add_header_v2(self) -> None:
         sheet = self.__get_worksheet_names()[-1]
         sheet.append_row(values= ["Ticker", "Company Name", "NCAV Ratio",  "EV/aFCF", "P/TBV Ratio", "Enterprise Value", "P/aFCF Ratio", "Country"],table_range='A1:G1')
@@ -69,6 +77,24 @@ class Sheet:
 
         print(f"{itr-2} companies added to spreadsheet.")
     
+    def add_alpha_row_data(self, data: dict):
+        sheet = self.__get_worksheet_names()[-1]
+        itr = 2
+        for k, v in data.items():
+            payload = [k, str(v['Name']), v["NCAV Ratio"], v["EV/aFCF"], v["5Y average"], v["FV Upside Metric"], v["5Y Price Metric"], str(v['HQ Location'])]
+            sheet.append_row(values= payload, table_range=f'A{itr}:H{itr}')
+            itr+= 1
+            sleep(2)
+    
+    def add_beta_row_data(self, data: dict):
+        sheet = self.__get_worksheet_names()[-1]
+        itr = 2
+        for k, v in data.items():
+            payload = [k, str(v['Name']), v["NCAV Ratio"], v["EV/aFCF"], v["P/TBV Ratio"], v["FV Upside Metric"], v["5Y Price Metric"], str(v['HQ Location'])]
+            sheet.append_row(values= payload, table_range=f'A{itr}:H{itr}')
+            itr+= 1
+            sleep(2)
+    
     def get_all_worksheets(self) -> list[gspread.Worksheet]:
         try:
             return self.__get_worksheet_names()
@@ -80,6 +106,26 @@ class Sheet:
             name = f"{self.today.day}-{self.month_dict[self.today.month]}-{self.today.year}"
             self.file.add_worksheet(title = name, rows = 0, cols = 0)
             self.__add_header()
+            print(f"Sheet {name} added.")
+            self._was_sheet_added_today = True
+        except:
+            print("Unable to add new tab. Tab already exists.")
+    
+    def create_alpha_module_tab(self):
+        try:
+            name = f"{self.today.day}-{self.month_dict[self.today.month]}-{self.today.year}"
+            self.file.add_worksheet(title = name, rows = 0, cols = 0)
+            self.__add_alpha_header()
+            print(f"Sheet {name} added.")
+            self._was_sheet_added_today = True
+        except:
+            print("Unable to add new tab. Tab already exists.")
+    
+    def create_beta_module_tab(self):
+        try:
+            name = f"{self.today.day}-{self.month_dict[self.today.month]}-{self.today.year}"
+            self.file.add_worksheet(title = name, rows = 0, cols = 0)
+            self.__add_beta_header()
             print(f"Sheet {name} added.")
             self._was_sheet_added_today = True
         except:

@@ -249,7 +249,7 @@ class AlphaModule:
             for k, v in stk_res.items():
                 try:
                     self.__check_reqs(requests_sent)
-                    key_metrics_ttm = await self.__get_key_metrics(session, k)
+                    key_metrics_ttm = await self.handler.get_key_metrics(session, k)
                     requests_sent += 1
                     free_float = self.__find_float_from_ticker(k)
                     y_0_ttm = key_metrics_ttm[0]['freeCashFlowPerShareTTM'] * free_float
@@ -269,8 +269,8 @@ class AlphaModule:
         return self.results
     
     def update_google_sheet(self, debug:bool=False) -> None:
-        self.sheet_client.create_new_tab()
-        self.sheet_client.add_row_data(self.results)
+        self.sheet_client.create_alpha_module_tab()
+        self.sheet_client.add_alpha_row_data(self.results)
         print("Google Sheet updated.") if debug else None
     
     def create_xlsx(self, file_path:str) -> None:

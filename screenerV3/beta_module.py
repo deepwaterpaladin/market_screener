@@ -1,4 +1,5 @@
 from dotenv import load_dotenv
+import pandas as pd
 from screener.Sheet import Sheet
 from .utilities import Handler
 from time import sleep
@@ -9,7 +10,7 @@ load_dotenv()
 
 
 class BetaModule:
-    def __init__(self, ticker_path: str, sheet_path:str = "./service_account.json", sheet_name: str = "Screener") -> None:
+    def __init__(self, ticker_path: str, sheet_path:str = "./service_account.json", sheet_name: str = "V2 Screener") -> None:
         self.sheet_client = Sheet(sheet_path= sheet_path, file_name=sheet_name)
         self.handler = Handler()
         self.tickers = self.handler.process_tickers(self.sheet_client, ticker_path)
@@ -143,6 +144,7 @@ class BetaModule:
                     ratio = round(v["Market Cap"] / ncav, 1)
                     net_debt = int(bs[0]["netDebt"])
                     v["Net Debt"] = net_debt
+                    v["NCAV Ratio"] = 1
                     if ratio > 0 and ratio < 2.5:
                         v["isAdded"] = True
                         v["NCAV Ratio"] = ratio
@@ -188,7 +190,7 @@ class BetaModule:
                     ev = km[0]["enterpriseValueTTM"]
                     v["EV"] = round(ev)
                     evFCF = ev/five_year_fcf_average
-                    
+                    v["EV/aFCF"] = 100
                     if evFCF > 1 and evFCF < 5:
                         v["isAdded"] = True
                         v["EV/aFCF"] = round(evFCF, 1)
@@ -246,8 +248,25 @@ class BetaModule:
             self.__sort_results()
             return stk_res
         
+    def create_xlsx(self, file_path:str) -> None:
+        """
+        Creates an Excel file with the screening results.
+
+        Parameters:
+        - `file_path` (str): The path to the Excel file.
+
+        Returns:
+        - `None`
+        """
+        if len(self.results) == 0:
+            print(f'ERROR: results dictionary is empty. Execute `Screener.run()` to screen the stocks. If you are still seeing this after running `Screener.run()`, there are no new stocks from the previous execution.')
+        else:
+            df = pd.DataFrame.from_dict(self.results, orient='index')
+            df.to_excel(file_path)
+            print(f"File saved to {file_path}")
+    
     def update_google_sheet(self, debug:bool=False) -> None:
-        self.sheet_client.create_new_tab_v2()
-        self.sheet_client.add_row_data_v2(self.results)
+        self.sheet_client.create_beta_module_tab()
+        self.sheet_client.add_beta_row_data(self.results)
         if debug:
             print("Google Sheet updated.")
