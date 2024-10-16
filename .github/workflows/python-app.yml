@@ -4,6 +4,9 @@
 name: Cloud Screener
 
 on:
+  issues:
+      types:
+        - opened
   pull_request:
     branches: [ "main" ]
 
