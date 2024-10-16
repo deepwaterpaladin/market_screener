@@ -40,4 +40,4 @@ jobs:
     #     pytest
     - name: Execute Screener
       run: |
-        cloud_screener.py
+        python cloud_screener.py
