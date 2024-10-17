@@ -43,7 +43,7 @@ class Sheet:
 
     def __add_alpha_header(self) -> None:
         sheet = self.__get_worksheet_names()[-1]
-        sheet.append_row(values= ["Ticker", "Company Name", "NCAV Ratio", "EV/aFCF", "Average Yield", "FV Upside", "5Y Price Metric", "HQ Location"],table_range='A1:H1')
+        sheet.append_row(values= ["Ticker", "Company Name",  "FV Upside", "5Y Price Metric", " ", "NCAV Ratio","EV/aFCF", "Payback Rating", "Average Yield", "HQ Country"],table_range='A1:J1')
 
     def __add_beta_header(self) -> None:
         sheet = self.__get_worksheet_names()[-1]
@@ -81,7 +81,7 @@ class Sheet:
         sheet = self.__get_worksheet_names()[-1]
         itr = 2
         for k, v in data.items():
-            payload = [k, str(v['Name']), v["NCAV Ratio"], v["EV/aFCF"], v["5Y average"], v["FV Upside Metric"], v["5Y Price Metric"], str(v['HQ Location'])]
+            payload = [k, str(v['Name']), v["FV Upside Metric"], v["5Y Price Metric"], " ", v["NCAV Ratio"], v["EV/aFCF"], v["Payback Rating"], v["5Y average"],   str(v['HQ Location'])]
             sheet.append_row(values= payload, table_range=f'A{itr}:H{itr}')
             itr+= 1
             sleep(2)
