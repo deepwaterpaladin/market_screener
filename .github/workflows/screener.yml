@@ -33,7 +33,7 @@ jobs:
 
       - name: Create service_account.json
         run: |
-          echo "${{ fromJson(secrets.SERVICE_ACCOUNT_JSON) }}" | jq '.' > ./screener/service_account.json
+          echo "${{ toJson(fromJson(secrets.SERVICE_ACCOUNT_JSON)) }}" > ./screener/service_account.json
 
       - name: Set environment variables
         run: |
