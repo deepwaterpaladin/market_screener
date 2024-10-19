@@ -34,9 +34,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Create service_account.json
-        run: |
-          echo "${{ secrets.SERVICE_ACCOUNT_JSON }}" > ./screener/service_account.json
+          - name: Create service_account.json
+          run: |
+            echo "${{ secrets.SERVICE_ACCOUNT_JSON }}" | jq '.' > ./screener/service_account.json
 
         # Step 4: Check out the environment file (e.g., .env file)
       - name: Set environment variables
