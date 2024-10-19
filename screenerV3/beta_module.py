@@ -81,6 +81,13 @@ class BetaModule:
                     ret[k] = v
             except:
                 rem+=1
+                continue 
+        
+        for k, v in ret.items():
+            try:
+                if v["EV/aFCF"] == "N/A":
+                    v["EV/aFCF"] = 1
+            except:
                 continue
         
         print(f"{rem}/{len(d.keys())} stocks removed during cleaning.")
