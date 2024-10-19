@@ -38,7 +38,8 @@ jobs:
         run: |
           JSON='${{ toJson(fromJson(secrets.SERVICE_ACCOUNT_JSON)) }}'
           echo "$JSON" > ./screener/service_account.json
-          echo ls
+          ls
+          ls ./screener
       
       - name: Set environment variables
         run: |
