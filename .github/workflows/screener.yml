@@ -36,8 +36,9 @@ jobs:
       
       - name: Create service_account.json
         run: |
-          echo ${{ toJson(fromJson(secrets.SERVICE_ACCOUNT_JSON)) }} > ./screener/service_account.json
-
+          JSON='${{ toJson(fromJson(secrets.SERVICE_ACCOUNT_JSON)) }}'
+          echo "$JSON" > service_account.json
+      
       - name: Set environment variables
         run: |
           echo "FMP_KEY=${{ secrets.FMP_KEY }}" >> $GITHUB_ENV
