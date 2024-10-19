@@ -47,7 +47,7 @@ class Sheet:
 
     def __add_beta_header(self) -> None:
         sheet = self.__get_worksheet_names()[-1]
-        sheet.append_row(values= ["Ticker", "Company Name", "NCAV Ratio",  "EV/aFCF", "P/TBV Ratio", "FV Upside", "5Y Price Metric", "HQ Location"],table_range='A1:H1')
+        sheet.append_row(values= ["Ticker", "Company Name", "NCAV Ratio",  "EV/aFCF", "P/TBV Ratio", "HQ Location", " ", "FV Upside", "5Y Price Metric"],table_range='A1:I1')
     
     def __add_header_v2(self) -> None:
         sheet = self.__get_worksheet_names()[-1]
@@ -81,8 +81,8 @@ class Sheet:
         sheet = self.__get_worksheet_names()[-1]
         itr = 2
         for k, v in data.items():
-            payload = [k, str(v['Name']), v["FV Upside Metric"], v["5Y Price Metric"], " ", v["NCAV Ratio"], v["EV/aFCF"], v["Payback Rating"], v["5Y average"],   str(v['HQ Location'])]
-            sheet.append_row(values= payload, table_range=f'A{itr}:H{itr}')
+            payload = [k, str(v['Name']), f"{v['FV Upside Metric']}%", f"{v['5Y Price Metric']}%", " ", v["NCAV Ratio"], v["EV/aFCF"], v["Payback Rating"], v["5Y average"], str(v['HQ Location'])]
+            sheet.append_row(values= payload, table_range=f'A{itr}:J{itr}')
             itr+= 1
             sleep(2)
     
@@ -90,8 +90,8 @@ class Sheet:
         sheet = self.__get_worksheet_names()[-1]
         itr = 2
         for k, v in data.items():
-            payload = [k, str(v['Name']), v["NCAV Ratio"], v["EV/aFCF"], v["P/TBV Ratio"], v["FV Upside Metric"], v["5Y Price Metric"], str(v['HQ Location'])]
-            sheet.append_row(values= payload, table_range=f'A{itr}:H{itr}')
+            payload = [k, str(v['Name']), v["NCAV Ratio"], v["EV/aFCF"], v["P/TBV Ratio"], str(v['HQ Location']), " ", f"{v['FV Upside Metric']}%", f"{v['5Y Price Metric']}%"]
+            sheet.append_row(values= payload, table_range=f'A{itr}:I{itr}')
             itr+= 1
             sleep(2)
     

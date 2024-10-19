@@ -71,15 +71,19 @@ class BetaModule:
     
     def __clean_results(self, d:dict):
         ret = {}
+        rem = 0
         for k, v in d.items():
             try:
                 if v["Net Debt"] > 0:
+                    rem +=1
                     continue # screen out stocks with net debt
                 elif v["isAdded"]:
                     ret[k] = v
             except:
+                rem+=1
                 continue
         
+        print(f"{rem}/{len(d.keys())} stocks removed during cleaning.")
         return ret
     
     def __sort_results(self) -> None:
