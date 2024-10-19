@@ -1,6 +1,6 @@
 from dotenv import load_dotenv
 import pandas as pd
-from screener.Sheet import Sheet
+from .sheet import Sheet
 from .utilities import Handler
 from time import sleep
 import aiohttp

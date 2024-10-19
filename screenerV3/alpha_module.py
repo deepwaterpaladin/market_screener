@@ -1,11 +1,10 @@
 from dotenv import load_dotenv
-from screener.Sheet import Sheet
+from .sheet import Sheet
 from .utilities import Handler
 import pandas as pd
 from time import sleep
 import aiohttp
 import os
-import json
 
 load_dotenv()
 
