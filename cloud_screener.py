@@ -3,7 +3,7 @@ from screenerV3.alpha_module import AlphaModule
 from screenerV3.beta_module import BetaModule
 from time import sleep
 
-service_account = '.service_account.json'
+service_account = './screener/service_account.json'
 v1_path = './data/cleaned_tickers.json'
 v2_path = './data/non_banking_tickers.json'
 test_path = './data/test_data.json'
