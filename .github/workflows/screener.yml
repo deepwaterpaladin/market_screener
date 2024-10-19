@@ -31,6 +31,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Create directory for service account
+        run: mkdir -p ./screener  
+      
       - name: Create service_account.json
         run: |
           echo '${{ toJson(fromJson(secrets.SERVICE_ACCOUNT_JSON)) }}' > ./screener/service_account.json
