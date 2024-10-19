@@ -1,3 +1,6 @@
+# This workflow will install Python dependencies, run tests and lint with a single version of Python
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
+
 name: Cloud Screener
 
 on:
@@ -30,7 +33,7 @@ jobs:
 
       - name: Create service_account.json
         run: |
-          echo "${{ secrets.SERVICE_ACCOUNT_JSON }}" | sed 's/\\n/\n/g' > ./screener/service_account.json
+          echo "${{ fromJson(secrets.SERVICE_ACCOUNT_JSON) }}" | jq '.' > ./screener/service_account.json
 
       - name: Set environment variables
         run: |
