@@ -120,4 +120,4 @@ class Sheet:
             sleep(31)
             self.get_all_previously_seen_tickers()
         
-        return [i[0] for sub in seen for i in sub if i]
+        return [i[0] for sub in seen for i in sub if i] 
