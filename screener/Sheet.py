@@ -161,7 +161,7 @@ class Sheet:
         all_sheets = self.get_all_worksheets()
         weeks = len(all_sheets)
         if weeks > 52:
-            sheets = all_sheets[-52:]
+            sheets = all_sheets[:52]
         else:
             sheets = all_sheets
         try:
